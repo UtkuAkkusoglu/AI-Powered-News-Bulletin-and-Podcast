@@ -22,15 +22,19 @@ class CategoryOut(CategoryBase):
 # 1. Base Şema (Ortak Alanlar)
 # Her iki yönde de (giriş-çıkış) ortak olan alanları burada topluyoruz.
 class UserBase(BaseModel):
-    username: str
     email: EmailStr
 
 # 2. Kayıt Şeması (User Create)
-# Kullanıcı kayıt olurken ekstra olarak şifre (password) göndermeli.
+# Kullanıcı kayıt olurken ekstra olarak şifre ve username göndermeli.
 class UserCreate(UserBase):
+    username: str
     password: str
 
-# 3. Yanıt Şeması (User Out / Response)
+# 3. Giriş yaparken email haricinde şifre lazım
+class UserLogin(UserBase):
+    password: str
+
+# 4. Yanıt Şeması (User Out / Response)
 # API üzerinden kullanıcıya "Hesabın oluştu, işte bilgilerin" dediğimizde
 # şifreyi gizleyip ID gibi otomatik oluşan alanları ekliyoruz.
 class UserOut(UserBase):
