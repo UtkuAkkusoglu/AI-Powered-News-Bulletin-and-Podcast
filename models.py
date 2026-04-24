@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from datetime import datetime
 
 # ==========================================
 # 1. ARA TABLO (KÖPRÜ / JUNCTION TABLE)  - Many-to-Many ilişkilerde kullanılır.
@@ -22,7 +23,6 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
 
     # ==========================================
     # İLİŞKİLER (RELATIONSHIPS)
@@ -66,3 +66,12 @@ class NewsCategory(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False) # "Teknoloji", "Siyaset" vb.
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # Kullanıcı silindiğinde ona ait refresh token'lar da silinsin(CASCADE)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)  # Token'ın ne zaman oluşturulduğu bilgisi, ileride blacklist yaparken veya token'ların ömrünü yönetirken faydalı olabilir.
