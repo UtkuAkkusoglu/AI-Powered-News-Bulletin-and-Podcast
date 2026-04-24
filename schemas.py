@@ -39,6 +39,7 @@ class UserLogin(UserBase):
 # şifreyi gizleyip ID gibi otomatik oluşan alanları ekliyoruz.
 class UserOut(UserBase):
     id: int
+    username: str 
     interests: List[CategoryOut] = []  # # Kullanıcının ilgi duyduğu kategorileri bir liste olarak ekliyoruz
 
     class Config:
@@ -90,3 +91,7 @@ class PodcastOut(PodcastBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+# --- Kullanıcı İlgi Alanları Güncelleme ---
+class UserInterestsUpdate(BaseModel):
+    category_ids: List[int]

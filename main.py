@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import auth, news, podcast  # Routers klasöründen çekiyoruz
+from routers import auth, news, podcast, users  # Routers klasöründen çekiyoruz
 from database import engine
 import models
 
@@ -16,6 +16,7 @@ models.Base.metadata.create_all(bind=engine)
 app.include_router(auth.router)
 app.include_router(news.router)
 app.include_router(podcast.router)
+app.include_router(users.router)
 
 @app.get("/")
 def root():
