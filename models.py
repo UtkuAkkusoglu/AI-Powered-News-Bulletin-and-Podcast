@@ -75,3 +75,16 @@ class RefreshToken(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # Kullanıcı silindiğinde ona ait refresh token'lar da silinsin(CASCADE)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)  # Token'ın ne zaman oluşturulduğu bilgisi, ileride blacklist yaparken veya token'ların ömrünü yönetirken faydalı olabilir.
+
+class UserClick(Base):
+    __tablename__ = "user_clicks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    click_count = Column(Integer, default=1)
+    last_click_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # İlişkiler (Opsiyonel ama raporlama için iyi olur)
+    user = relationship("User")
+    category = relationship("NewsCategory")

@@ -48,6 +48,12 @@ def register_user(user: schemas.UserCreate, db: db_dependency):
 
 @router.post("/login", response_model=schemas.Token)
 def login(user_credentials: schemas.UserLogin, db: db_dependency, response: Response):
+    """
+    ### BURAK (Frontend):
+    - Başarılı girişte sana `access_token` döner. Bunu 'Bearer' token olarak sakla.
+    - **Refresh Token:** HttpOnly Cookie olarak otomatik set edilir, senin manuel saklamana gerek yoktur.
+    """
+    
     # 1. Kullanıcıyı e-posta ile bul
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
     
