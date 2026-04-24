@@ -19,13 +19,3 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Modellerin türetildiği temel sınıf
 Base = declarative_base()
-
-# Veritabanı oturumu yönetimi için Dependency (db injection)
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-db_dependency = Annotated[Session, Depends(get_db)]

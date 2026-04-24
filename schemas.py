@@ -39,7 +39,6 @@ class UserLogin(UserBase):
 # şifreyi gizleyip ID gibi otomatik oluşan alanları ekliyoruz.
 class UserOut(UserBase):
     id: int
-    is_active: bool
     interests: List[CategoryOut] = []  # # Kullanıcının ilgi duyduğu kategorileri bir liste olarak ekliyoruz
 
     class Config:
@@ -83,3 +82,11 @@ class PodcastOut(PodcastBase):
 
     class Config:
         from_attributes = True
+
+# --- Token Şemaları ---
+
+# Login sonrası kullanıcıya döneceğimiz paket
+# Sadece Access Token döneceğiz, Refresh Cookie'de saklanacak.
+class Token(BaseModel):
+    access_token: str
+    token_type: str
