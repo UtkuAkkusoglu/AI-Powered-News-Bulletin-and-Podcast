@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 import models, schemas, utils
 from dependencies import db_dependency
@@ -47,21 +49,28 @@ def register_user(user: schemas.UserCreate, db: db_dependency):
     return new_user
 
 @router.post("/login", response_model=schemas.Token)
-def login(user_credentials: schemas.UserLogin, db: db_dependency, response: Response):
+def login(db: db_dependency, response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     """
     ### BURAK (Frontend):
+    - **Esneklik:** Kullanıcı bu alana ister **Email** adresini, ister **Username** (kullanıcı adı) bilgisini girebilir. 
+    - Arayüzde (UI) giriş kutusunun etiketini *"E-posta veya Kullanıcı Adı"* olarak belirlemek kullanıcı deneyimi (UX) açısından iyi olur.
     - Başarılı girişte sana `access_token` döner. Bunu 'Bearer' token olarak sakla.
     - **Refresh Token:** HttpOnly Cookie olarak otomatik set edilir, senin manuel saklamana gerek yoktur.
     """
-    
-    # 1. Kullanıcıyı e-posta ile bul
-    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
+
+    # 1. Kullanıcıyı hem email hem de username alanında arıyoruz
+    user = db.query(models.User).filter(
+        or_(
+            models.User.email == form_data.username, 
+            models.User.username == form_data.username
+        )
+    ).first()
     
     # 2. Kullanıcı var mı veya şifre doğru mu diye kontrol et, Giriş işlemlerinde güvenlik gereği genelde "Email yanlış" veya "Şifre yanlış" diye ayrı ayrı detay verilmez. "Bilgiler hatalı" denir ki art niyetli biri hangisinin doğru olduğunu anlamasın. 403, "Yetkin yok, giremezsin" demektir.
-    if not user or not utils.verify_password(user_credentials.password, user.hashed_password):
+    if not user or not utils.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Invalid credentials, no such user exists."
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid credentials"
         )
     
     # 3. Payload hazırlıyoruz (sadece user id yeterli)
@@ -135,3 +144,25 @@ def handle_refresh_token_logic(db: Session, response: Response, user_id: int, ol
     )
     
     return new_refresh_token
+
+@router.post("/logout")
+def logout(response: Response, db: db_dependency, refresh_token: Annotated[Optional[str], Cookie()] = None):
+    """
+    ### BURAK:
+    - Kullanıcı çıkış yaptığında bunu çağır. Cookie'leri temizler.
+    """
+    if refresh_token:
+        db_token = db.query(models.RefreshToken).filter(models.RefreshToken.token == refresh_token).first()
+        if db_token:
+            db.delete(db_token)
+            db.commit()
+    
+    # respose.delete_cookie("refresh_token") da kullanabilirsin ama burada tüm parametreleri vererek daha güvenli bir şekilde siliyoruz, çünkü set ederken de aynı parametrelerle set etmiştik.
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,  # set_cookie'deki değerin aynısı
+        samesite="lax" # set_cookie'deki değerin aynısı
+    )
+
+    return {"message": "Successfully logged out"}

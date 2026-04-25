@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing_extensions import List, Annotated
+from typing_extensions import List
 import models, schemas
-from dependencies import db_dependency, get_current_user
+from dependencies import db_dependency, user_dependency
 
 router = APIRouter(
-    prefix="/users",
-    tags=["Users"]
+    prefix="/users",  # Tüm yolların başına otomatik /users ekler
+    tags=["Users"]    # Swagger dökümanında bunları gruplar
 )
 
 # 1. Mevcut Kullanıcının Profilini Getir
 @router.get("/me", response_model=schemas.UserOut)
-def get_me(current_user: Annotated[models.User, Depends(get_current_user)]):
+def get_me(current_user: user_dependency):
     """
     ### BURAK (Frontend):
     - Giriş yapan kullanıcının bilgilerini ve **seçili ilgi alanlarını** getirir.
@@ -31,7 +31,7 @@ def get_categories(db: db_dependency):
 def update_interests(
     data: schemas.UserInterestsUpdate, 
     db: db_dependency, 
-    current_user: Annotated[models.User, Depends(get_current_user)]
+    current_user: user_dependency
 ):
     """
     ### BURAK (Frontend):
@@ -56,3 +56,45 @@ def update_interests(
     db.commit()
     
     return {"message": "Interests updated successfully!"}
+
+# 4. Yeni Kategori Ekle
+@router.post("/categories", response_model=schemas.CategoryOut, status_code=status.HTTP_201_CREATED)
+def create_category(category: schemas.CategoryCreate, db: db_dependency):
+    """
+    ### CİHAN:
+    - **GÖREV:** AI haberleri kazırken listede olmayan bir kategori belirlerse, bu endpoint'i kullanarak o kategoriyi sisteme kaydetmelisin.
+    - İç mantığı (Validation, Duplicate check vb.) sen kendi pipeline'ına göre buraya kurgulayabilirsin.
+    - Şimdilik temel kayıt mantığı aşağıdadır:
+    """
+    new_cat = models.NewsCategory(**category.dict())
+    db.add(new_cat)
+    db.commit()
+    db.refresh(new_cat)
+    return new_cat
+
+# 5. Kategori Sil
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(category_id: int, db: db_dependency):
+    """
+    ### CİHAN:
+    - **GÖREV:** Yanlış açılan veya artık kullanılmayan kategorileri temizlemek senin sorumluluğunda.
+    - **DİKKAT:** Foreign Key kısıtlamalarına dikkat et; içinde haber olan kategoriyi silemezsin.
+    """
+    category = db.query(models.NewsCategory).filter(models.NewsCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found.")
+    
+    db.delete(category)
+    db.commit()
+    return None
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(current_user: user_dependency, db: db_dependency):
+    """
+    ### BURAK (Frontend):
+    - Kullanıcı 'Hesabımı Sil' butonuna bastığında bu endpoint'i çağır. 
+    - İşlem başarılı olursa kullanıcıyı Logout yap ve Login ekranına at.
+    """
+    db.delete(current_user)
+    db.commit()
+    return None # 204 No Content olduğu için bir şey dönmemize gerek yok
