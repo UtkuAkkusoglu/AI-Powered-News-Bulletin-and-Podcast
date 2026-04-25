@@ -46,9 +46,12 @@ class News(Base):
     title = Column(String, index=True, nullable=False)
     content = Column(Text, nullable=False)
     summary = Column(Text) # AI tarafından özetlenmiş hali
-    category = Column(String, index=True, nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     source_url = Column(String)
+    image_url = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    category = relationship("NewsCategory") # Relationship sayesinde isme ulaşacağız
 
 class Podcast(Base):
     __tablename__ = "podcasts"
@@ -58,6 +61,7 @@ class Podcast(Base):
     audio_url = Column(String, nullable=False) # Cloud Storage (GCP) üzerindeki dosya yolu
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    duration = Column(Integer, nullable=False) # Saniye cinsinden
 
     owner = relationship("User", back_populates="podcasts")
 
@@ -84,7 +88,8 @@ class UserClick(Base):
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
     click_count = Column(Integer, default=1)
     last_click_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_suggested = Column(Boolean, default=False)
 
-    # İlişkiler (Opsiyonel ama raporlama için iyi olur)
+    # İlişkiler
     user = relationship("User")
     category = relationship("NewsCategory")
