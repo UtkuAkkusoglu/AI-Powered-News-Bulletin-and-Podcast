@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -44,7 +44,14 @@ class UserOut(UserBase):
 
 # 5. Kullanıcı İlgi Alanları Güncelleme Şeması
 class UserInterestsUpdate(BaseModel):
-    category_ids: List[int]
+    category_ids: List[int] = Field(..., min_items=2, description="At least 2 category IDs must be selected!") # En az 2 kategori seçilmeli, bu sayede öneri mekanizması daha sağlıklı çalışır.
+
+    # Opsiyonel: Daha detaylı hata mesajı için
+    @validator('category_ids')
+    def check_min_categories(cls, v):
+        if len(v) < 2:
+            raise ValueError('You must select at least 2 categories!')
+        return v
 
 # --- Haber Şemaları ---
 

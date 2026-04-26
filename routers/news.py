@@ -64,9 +64,10 @@ def create_news(news: schemas.NewsCreate, db: db_dependency):
 def track_news_click(news_id: int, current_user: user_dependency, db: db_dependency):
     """
     ### BURAK (Frontend):
-    - Kullanıcı habere tıkladığında bu endpoint'i arka planda çağır.
-    - **DİKKAT:** Eğer yanıtın içinde `"suggestion"` alanı dolu gelirse, kullanıcıya bir pop-up göster:
-      * Örnek: "Bu kategoriye sıkça bakıyorsun, ilgi alanlarına eklemek ister miydin?"*
+    - **DİKKAT:** Kullanıcı bir habere tıkladığı an bu endpoint'i TETİKLE.
+    - **Akıllı Sistem:** Arka planda kullanıcının hangi kategoriye kaç kere tıkladığını sayıyorum.
+    - **Öneri:** Eğer yanıtın içinde `suggestion` objesi gelirse (Null değilse), bu kullanıcı 5 tıkı geçti demektir. 
+    - **Aksiyon:** Ekranda "Bu kategori (Örn: Spor) ilgini çekiyor gibi, ekleyelim mi?" diye bir pop-up çıkar.
     """
 
     # 1. Haberi bul ki kategorisini öğrenelim

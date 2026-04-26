@@ -18,15 +18,7 @@ def get_me(current_user: user_dependency):
     """
     return current_user
 
-# 2. Tüm Kategorileri Listele
-@router.get("/categories", response_model=List[schemas.CategoryOut])
-def get_categories(db: db_dependency):
-    """
-    Kullanıcının seçim yapabilmesi için sistemdeki tüm kategorileri getirir.
-    """
-    return db.query(models.NewsCategory).all()
-
-# 3. İlgi Alanlarını Güncelle
+# 2. İlgi Alanlarını Güncelle
 @router.post("/interests")
 def update_interests(
     data: schemas.UserInterestsUpdate, 
@@ -35,8 +27,10 @@ def update_interests(
 ):
     """
     ### BURAK (Frontend):
-    - Hem ilk kayıt sonrası hem de 'Profilim' sayfasındaki kategori güncellemeleri için kullanılır.
-    - Gönderdiğin liste, kullanıcının ilgi alanlarının **son halidir**. Listede olmayanlar silinir, yeni olanlar eklenir.
+    - **ZORUNLULUK:** Kullanıcı en az **2 adet** kategori seçmelidir. 
+    - **Validasyon:** Şema seviyesinde `min_items=2` kontrolü vardır. 1 tane gönderirsen otomatik hata döner.
+    - **UX Notu:** Kullanıcı 2 seçim yapmadan 'Kaydet' butonunu *disabled* (pasif) yaparsan çok şık olur.
+    - **Mantık:** Gönderdiğin liste son halidir; listede olmayanlar silinir, yeniler eklenir.
     """
 
     # Gelen ID'lere göre kategorileri çekiyoruz
@@ -57,37 +51,7 @@ def update_interests(
     
     return {"message": "Interests updated successfully!"}
 
-# 4. Yeni Kategori Ekle
-@router.post("/categories", response_model=schemas.CategoryOut, status_code=status.HTTP_201_CREATED)
-def create_category(category: schemas.CategoryCreate, db: db_dependency):
-    """
-    ### CİHAN:
-    - **GÖREV:** AI haberleri kazırken listede olmayan bir kategori belirlerse, bu endpoint'i kullanarak o kategoriyi sisteme kaydetmelisin.
-    - İç mantığı (Validation, Duplicate check vb.) sen kendi pipeline'ına göre buraya kurgulayabilirsin.
-    - Şimdilik temel kayıt mantığı aşağıdadır:
-    """
-    new_cat = models.NewsCategory(**category.dict())
-    db.add(new_cat)
-    db.commit()
-    db.refresh(new_cat)
-    return new_cat
-
-# 5. Kategori Sil
-@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: db_dependency):
-    """
-    ### CİHAN:
-    - **GÖREV:** Yanlış açılan veya artık kullanılmayan kategorileri temizlemek senin sorumluluğunda.
-    - **DİKKAT:** Foreign Key kısıtlamalarına dikkat et; içinde haber olan kategoriyi silemezsin.
-    """
-    category = db.query(models.NewsCategory).filter(models.NewsCategory.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found.")
-    
-    db.delete(category)
-    db.commit()
-    return None
-
+# 3. Kullanıcıyı Sil
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(current_user: user_dependency, db: db_dependency):
     """
