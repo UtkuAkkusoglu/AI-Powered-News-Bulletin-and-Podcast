@@ -1,15 +1,9 @@
-import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from fastapi import Depends
-from typing_extensions import Annotated
+from sqlalchemy.orm import sessionmaker
+from config import settings
 
-# .env dosyasındaki değişkenleri yükle
-load_dotenv()
-
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 # Veritabanı motorunu oluşturuyoruz
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
