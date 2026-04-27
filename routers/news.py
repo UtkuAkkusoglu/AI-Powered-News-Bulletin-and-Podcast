@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing_extensions import Optional
 import schemas, models
 from dependencies import db_dependency, user_dependency

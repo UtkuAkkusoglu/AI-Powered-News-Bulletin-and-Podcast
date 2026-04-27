@@ -4,7 +4,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 import models, schemas, utils
 from dependencies import db_dependency
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing_extensions import Annotated, Optional
 
 router = APIRouter(
@@ -92,12 +92,22 @@ def refresh_access_token(response: Response, db: db_dependency, refresh_token: A
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
     db_token = db.query(models.RefreshToken).filter(models.RefreshToken.token == refresh_token).first()
+
+    if not db_token:
+        raise HTTPException(status_code=401, detail="Refresh token invalid")
+
+    now = datetime.now(timezone.utc)
     
-    if not db_token or db_token.expires_at < datetime.utcnow():
+    # DB'den gelen expires_at eğer naive ise (etiketi yoksa) UTC etiketini yapıştırıyoruz
+    db_expires_at = db_token.expires_at
+    if db_expires_at.tzinfo is None:
+        db_expires_at = db_expires_at.replace(tzinfo=timezone.utc)
+    
+    if db_expires_at < now:
         if db_token:
             db.delete(db_token)
             db.commit()
-        raise HTTPException(status_code=401, detail="Refresh token expired or invalid")
+        raise HTTPException(status_code=401, detail="Refresh token expired")
 
     # Yeni Access Token üret
     new_access_token = utils.create_access_token(data={"sub": str(db_token.user_id)})

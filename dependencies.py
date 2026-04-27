@@ -1,11 +1,15 @@
-import os
 from typing_extensions import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from database import SessionLocal
-import models, schemas
+import models
+from config import settings
+
+# Ayarları dosya başında değişkenlere atıyoruz
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 # 1. Veritabanı Bağımlılığı (DB Dependency)
 def get_db():
@@ -21,11 +25,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 # "tokenUrl" login olduğumuz endpoint'in ismidir.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login") 
 
-# 3. JWT Ayarlarını .env'den okuyoruz
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-
-# 4. Bu fonksiyon her istekte token'ı kontrol eder.
+# 3. Bu fonksiyon her istekte token'ı kontrol eder.
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: db_dependency):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
