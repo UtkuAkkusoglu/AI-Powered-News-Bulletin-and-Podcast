@@ -1,26 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Veritabanı Servisimiz
-  db:
-    image: postgres:16-alpine
-    container_name: news-and-podcast-db
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "5432:5432"
-    volumes:
-      - news_and_podcast_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      # Çift dolar işareti, değişkenin Compose tarafından değil, 
-      # konteyner içindeki shell tarafından okunmasını sağlar.
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # 2. Senin FastAPI Uygulaman
+  # Senin FastAPI Uygulaman
   api:
     build: .  # Aynı dizindeki Dockerfile'ı kullanarak imajı oluşturur
     container_name: news-and-podcast-api
@@ -29,9 +10,3 @@ services:
       - .env
     ports:
       - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy # DB sağlıklı hale gelmeden (Healthcheck) API'yi başlatma!
-
-volumes:
-  news_and_podcast_postgres_data:
