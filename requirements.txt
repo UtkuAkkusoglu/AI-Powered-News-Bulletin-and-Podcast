@@ -36,3 +36,5 @@ starlette==0.44.0
 typing-extensions==4.13.2
 uvicorn==0.33.0
 zipp==3.20.2
+google-cloud-secret-manager==2.21.0
+google-auth==2.35.0
