@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing_extensions import Optional
 import schemas, models
 from dependencies import db_dependency, user_dependency
+from worker import process_news_and_tts_task
 
 router = APIRouter(
     prefix="/news",
@@ -47,17 +48,26 @@ def get_news(
     }
 
 @router.post("/", response_model=schemas.NewsDetailOut, status_code=status.HTTP_201_CREATED)
-def create_news(news: schemas.NewsCreate, db: db_dependency):
+def create_news(news: schemas.NewsCreate, db: db_dependency, current_user: user_dependency):
     """
     ### CIHAN (AI & Data Pipeline):
-    - Kazıdığın (Scraping) haberleri bu endpoint ile sisteme yükleyeceksin.
-    - Gemini ile oluşturduğun 'summary' bilgisini de buraya gönder.
-    - 'category_id' gönderirken dikkatli ol, kategori tablosundaki ID'lerle eşleşmeli.
+    - **Scraping:** Kazıdığın haberleri bu endpoint ile sisteme yükleyebilirsin.
+    - **Automation:** Bu endpoint'e veri geldiği an, arka planda otomatik olarak 'Celery Task' tetiklenir.
+    - **Pipeline:** Celery; Gemini ile özetleme ve Google TTS ile seslendirme süreçlerini sıraya alır.
+    
+    ### Teknik Detay:
+    - `.delay()` kullanımı sayesinde API cevabı bekletmez, işi Redis üzerinden Worker'a paslar.
     """
+    # 1. Haberi DB'ye kaydet
     new_news = models.News(**news.dict())
     db.add(new_news)
     db.commit()
     db.refresh(new_news)
+    
+    # 2. CIHAN İÇİN OTOMATİK MOTORU ÇALIŞTIR (Celery Tetikleme)
+    # Bu satır sayesinde haber eklendiği an arka planda ses üretimi başlar.
+    process_news_and_tts_task.delay(new_news.id, current_user.id)
+    
     return new_news
 
 @router.post("/{news_id}/click")

@@ -2,6 +2,8 @@ from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 from config import settings
+from google.cloud import storage
+import os
 
 # Ayarları dosya başında değişkenlere atıyoruz
 SECRET_KEY = settings.SECRET_KEY
@@ -32,7 +34,20 @@ def create_access_token(data: dict):
 def create_refresh_token(data: dict):
     to_encode = data.copy()
     # Şu anki zaman + REFRESH_TOKEN_EXPIRE_DAYS gün
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def upload_to_gcs(file_path: str, destination_blob_name: str):
+    """Cihan bu fonksiyonu kullanarak .mp3 dosyalarını GCS'ye yükleyecek."""
+    bucket_name = "news-and-podcast-storage" 
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    
+    # Dosyayı Frankfurt'taki bucket'a yüklüyoruz
+    blob.upload_from_filename(file_path)
+    
+    # Burak frontend tarafında doğrudan erişebilsin diye public URL'i dönüyoruz
+    return f"https://storage.googleapis.com/{bucket_name}/{destination_blob_name}"

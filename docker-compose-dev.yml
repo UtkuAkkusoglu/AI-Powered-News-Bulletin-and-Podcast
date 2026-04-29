@@ -20,9 +20,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Senin FastAPI Uygulaman
+  # 2. Redis (Celery Mesaj Taşıyıcı)
+  redis:
+    image: redis:alpine
+    container_name: news-and-podcast-redis
+    ports:
+      - "6379:6379"
+
+  # 3. FastAPI Uygulaması
   api:
-    build: .  # Aynı dizindeki Dockerfile'ı kullanarak imajı oluşturur
+    build: .
     container_name: news-and-podcast-api
     restart: always
     env_file:
@@ -31,7 +38,22 @@ services:
       - "8080:8080"
     depends_on:
       db:
-        condition: service_healthy # DB sağlıklı hale gelmeden (Healthcheck) API'yi başlatma!
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # 4. Celery Worker (AI işlerini yapacak motor)
+  worker:
+    build: .
+    container_name: news-and-podcast-worker
+    command: celery -A worker.celery_app worker --loglevel=info
+    env_file: 
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
 volumes:
   news_and_podcast_postgres_data:

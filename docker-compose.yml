@@ -1,12 +1,31 @@
 version: '3.8'
 
 services:
-  # Senin FastAPI Uygulaman
+  # 1. Redis
+  redis:
+    image: redis:alpine
+    container_name: news-and-podcast-redis
+    ports:
+      - "6379:6379"
+
+  # 2. FastAPI Uygulaması
   api:
-    build: .  # Aynı dizindeki Dockerfile'ı kullanarak imajı oluşturur
+    build: .
     container_name: news-and-podcast-api
     restart: always
     env_file:
       - .env
     ports:
       - "8080:8080"
+    depends_on:
+      - redis
+
+  # 3. Celery Worker
+  worker:
+    build: .
+    container_name: news-and-podcast-worker
+    command: celery -A worker.celery_app worker --loglevel=info
+    env_file: 
+      - .env
+    depends_on:
+      - redis

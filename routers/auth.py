@@ -138,7 +138,7 @@ def handle_refresh_token_logic(db: Session, response: Response, user_id: int, ol
     new_db_token = models.RefreshToken(
         token=new_refresh_token,
         user_id=user_id,
-        expires_at=datetime.utcnow() + timedelta(days=7)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7)
     )
     db.add(new_db_token)
     db.commit()
