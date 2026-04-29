@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing_extensions import List, Annotated
 import schemas, models
 from dependencies import db_dependency, user_dependency
+from utils import upload_to_gcs
 
 router = APIRouter(
     prefix="/podcast",    # Tüm yolların başına otomatik /podcast ekler
@@ -35,8 +36,16 @@ def get_my_podcasts(
 @router.post("/", response_model=schemas.PodcastOut, status_code=status.HTTP_201_CREATED)
 def create_podcast(podcast: schemas.PodcastCreate, db: db_dependency, current_user: user_dependency):
     """
-    ### CIHAN (AI):
-    - Google TTS ile ses dosyasını üretip Cloud Storage'a yükledikten sonra URL ve duration (süre) bilgisini buraya gönder.
+    ### CIHAN (AI & Pipeline):
+    - **Adım 1:** Gemini ile özeti oluştur ve Google TTS ile .mp3 dosyasını üret.
+    - **Adım 2:** Ürettiğin dosyayı `utils.upload_to_gcs` fonksiyonu ile Frankfurt'a gönder.
+    - **Adım 3:** GCS'den dönen URL'yi bu endpoint'e 'audio_url' olarak post et.
+
+    Örnek Akış (Logic):
+    ------------------
+    # file_name = f"podcasts/user_{current_user.id}_{datetime.now().timestamp()}.mp3"
+    # public_url = upload_to_gcs(file_path="local_temp_audio.mp3", destination_blob_name=file_name)
+    # podcast.audio_url = public_url
     """
     
     new_podcast = models.Podcast(
