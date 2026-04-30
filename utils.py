@@ -42,7 +42,7 @@ def create_refresh_token(data: dict):
 def upload_to_gcs(file_path: str, destination_blob_name: str):
     """Cihan bu fonksiyonu kullanarak .mp3 dosyalarını GCS'ye yükleyecek."""
     bucket_name = "news-and-podcast-storage" 
-    storage_client = storage.Client()
+    storage_client = storage.Client()  # kod çalıştığında GOOGLE_APPLICATION_CREDENTIALS ortam değişkeninden otomatik olarak kimlik bilgilerini alır
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     

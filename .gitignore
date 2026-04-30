@@ -226,3 +226,5 @@ yarn-error.log*
 *.mp3
 *.wav
 generated_audio/
+
+gcp-service-account.json
