@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
 
+    # --- Google Cloud & Celery Ayarları ---
+    GOOGLE_APPLICATION_CREDENTIALS: str
+    CELERY_BROKER_URL: str
+
     # Pydantic'e .env dosyasını nasıl okuyacağını söylüyoruz
     model_config = SettingsConfigDict(
         env_file=".env",            # Dosya adı

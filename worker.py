@@ -1,10 +1,10 @@
-import os
 from celery import Celery
+from config import settings # settings.CELERY_BROKER_URL buradan gelecek
 from utils import upload_to_gcs
 # Cihan buraya Gemini ve TTS kütüphanelerini ekleyecek
 
-# Docker-compose içindeki servis adıyla (redis) bağlanıyoruz
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+# Docker-compose içindeki servis adıyla (redis) settings üzerinden bağlanıyoruz
+CELERY_BROKER_URL = settings.CELERY_BROKER_URL
 
 celery_app = Celery("tasks", broker=CELERY_BROKER_URL)
 
