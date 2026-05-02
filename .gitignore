@@ -228,3 +228,5 @@ yarn-error.log*
 generated_audio/
 
 gcp-service-account.json
+
+frontend/node_modules/

@@ -6,6 +6,7 @@ from database import engine, SessionLocal
 import models
 from seed_data import seed_categories
 import logging
+from fastapi.middleware.cors import CORSMiddleware
 
 # Loglama: Hataları terminalde görelim ki neyin patladığını bilelim (Uygulama başlamadan hemen önce olması iyidir)
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,14 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="AI-Powered News Bulletin and Podcast API",
     description="A 12-factor API that summarizes news and creates podcasts.",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- MERKEZİ HATA YAKALAYICI (Global Exception Handler) ---
