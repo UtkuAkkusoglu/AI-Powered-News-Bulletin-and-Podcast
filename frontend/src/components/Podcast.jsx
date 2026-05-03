@@ -12,7 +12,7 @@ function Podcast() {
     const fetchPodcasts = async () => {
       try {
         // Artık token ekleme kodu yok!
-        const response = await fetchWithAuth('http://localhost:8080/podcast/');
+        const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/`);
         if (response.ok) {
           const data = await response.json();
           setPodcasts(data.items);

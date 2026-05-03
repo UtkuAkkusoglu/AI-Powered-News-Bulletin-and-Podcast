@@ -19,7 +19,7 @@ function Auth() {
       formData.append('password', password);
 
       try {
-        const response = await fetch('http://localhost:8080/auth/login', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
           method: 'POST',
           body: formData,
           // KRİTİK: Çerezlerin (Refresh Token) kabul edilmesi ve gönderilmesi için şart
@@ -32,7 +32,7 @@ function Auth() {
           localStorage.setItem('token', data.access_token);
           
           // Kullanıcının ilgi alanları var mı kontrol etmek için profile gidiyoruz
-          const userResponse = await fetch('http://localhost:8080/users/me', {
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
             headers: { 'Authorization': `Bearer ${data.access_token}` }
           });
           const userData = await userResponse.json();
@@ -53,7 +53,7 @@ function Auth() {
     } else {
       // --- REGISTER İŞLEMİ ---
       try {
-        const response = await fetch('http://localhost:8080/auth/register', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, email, password }),

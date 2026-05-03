@@ -7,7 +7,7 @@ function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8080/auth/logout', { method: 'POST' });
+      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, { method: 'POST' });
     } catch (error) {
       console.error("Logout isteği başarısız oldu:", error);
     }
@@ -21,7 +21,7 @@ function Navbar() {
     if (isConfirmed) {
       const token = localStorage.getItem('token');
       try {
-        await fetch('http://localhost:8080/users/me', {
+        await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });

@@ -11,7 +11,7 @@ function Onboarding() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:8080/categories/');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/categories/`);
         if (response.ok) {
           const data = await response.json();
           setCategories(data);
@@ -41,7 +41,7 @@ function Onboarding() {
     const token = localStorage.getItem('token');
     
     try {
-      const response = await fetch('http://localhost:8080/users/interests', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/interests`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

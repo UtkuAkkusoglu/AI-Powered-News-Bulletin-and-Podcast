@@ -16,7 +16,7 @@ function Home() {
   const fetchNews = async (query = '') => {
     setLoading(true);
     try {
-      let url = 'http://localhost:8080/news/';
+      let url = `${import.meta.env.VITE_API_URL}/news/`;
       if (query) url += `?search=${query}`; 
 
       // Token eklemeye gerek yok, api.js hallediyor!
@@ -34,7 +34,7 @@ function Home() {
 
   const handleNewsClick = async (newsId) => {
     try {
-      const detailResponse = await fetchWithAuth(`http://localhost:8080/news/${newsId}`);
+      const detailResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`);
       if (detailResponse.ok) {
         const detailData = await detailResponse.json();
         setSelectedNews(detailData);
@@ -44,7 +44,7 @@ function Home() {
     }
 
     try {
-      const clickResponse = await fetchWithAuth(`http://localhost:8080/news/${newsId}/click`, {
+      const clickResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/click`, {
         method: 'POST'
       });
       
@@ -63,7 +63,7 @@ function Home() {
     if (!suggestion) return;
 
     try {
-      const meResponse = await fetchWithAuth('http://localhost:8080/users/me');
+      const meResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
 
       if (meResponse.ok) {
         const userData = await meResponse.json();
@@ -72,7 +72,7 @@ function Home() {
         if (!currentInterestIds.includes(suggestion.id)) {
           const updatedInterestIds = [...currentInterestIds, suggestion.id];
 
-          const updateResponse = await fetchWithAuth('http://localhost:8080/users/interests', {
+          const updateResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/interests`, {
             method: 'POST',
             body: JSON.stringify({ category_ids: updatedInterestIds })
           });

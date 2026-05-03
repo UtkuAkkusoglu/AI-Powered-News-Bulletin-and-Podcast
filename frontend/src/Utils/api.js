@@ -22,7 +22,7 @@ export const fetchWithAuth = async (url, options = {}) => {
     try {
       // 3. Arka planda sessizce yeni token almayı dene[cite: 1]
       // credentials: 'include' çok kritik! Tarayıcıdaki HttpOnly Refresh Cookie'yi backend'e taşır.
-      const refreshResponse = await fetch('http://localhost:8080/auth/refresh', {
+      const refreshResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include' 
       });
