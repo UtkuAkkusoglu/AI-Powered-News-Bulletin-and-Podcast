@@ -55,5 +55,17 @@ services:
       redis:
         condition: service_started
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://api:8080
+    depends_on:
+      - api
+
 volumes:
   news_and_podcast_postgres_data:

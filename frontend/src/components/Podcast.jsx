@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
-import { fetchWithAuth } from '../utils/api'; // YENİ
+import { fetchWithAuth } from '../Utils/api'; // YENİ
 
 function Podcast() {
   const [podcasts, setPodcasts] = useState([]);

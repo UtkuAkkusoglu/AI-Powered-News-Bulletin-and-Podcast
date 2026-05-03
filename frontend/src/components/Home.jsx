@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from './Navbar';
-import { fetchWithAuth } from '../utils/api'; // YENİ: Süper kahramanımızı içeri aldık
+import { fetchWithAuth } from '../Utils/api'; // YENİ: Süper kahramanımızı içeri aldık
 
 function Home() {
   const [newsList, setNewsList] = useState([]);
