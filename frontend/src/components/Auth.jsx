@@ -1,147 +1,122 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // YENİ EKLENDİ
+import { useNavigate } from 'react-router-dom';
 
 function Auth() {
   const [isLogin, setIsLogin] = useState(true);
-  
-  // Form State'leri
-  const [username, setUsername] = useState(''); // Girişte Email veya Username, Kayıtta Username
-  const [email, setEmail] = useState('');       // Sadece Kayıtta
+  const [username, setUsername] = useState(''); // Backend hem email hem username kabul eder
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState({ text: '', type: '' });
-
-  const navigate = useNavigate(); // YENİ EKLENDİ
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage({ text: 'İşlem yapılıyor...', type: 'info' });
-
+    
     if (isLogin) {
-      // --- LİGİN İŞLEMİ ---
-      // Backend OAuth2 Form Data beklediği için URLSearchParams kullanıyoruz.
-      const formData = new URLSearchParams();
-      formData.append('username', username);
+      // --- LOGIN İŞLEMİ ---
+      // Backend OAuth2PasswordRequestForm beklediği için veriyi FormData ile gönderiyoruz[cite: 1]
+      const formData = new FormData();
+      formData.append('username', username); // Buraya email veya kullanıcı adı girilebilir[cite: 1]
       formData.append('password', password);
 
       try {
         const response = await fetch('http://localhost:8080/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: formData.toString()
+          body: formData,
+          // KRİTİK: Çerezlerin (Refresh Token) kabul edilmesi ve gönderilmesi için şart
+          credentials: 'include', 
         });
 
-        const data = await response.json();
         if (response.ok) {
-          setMessage({ text: 'Giriş Başarılı! Yönlendiriliyorsunuz...', type: 'success' });
+          const data = await response.json();
+          // Access token'ı saklıyoruz[cite: 1]
           localStorage.setItem('token', data.access_token);
+          
+          // Kullanıcının ilgi alanları var mı kontrol etmek için profile gidiyoruz
+          const userResponse = await fetch('http://localhost:8080/users/me', {
+            headers: { 'Authorization': `Bearer ${data.access_token}` }
+          });
+          const userData = await userResponse.json();
 
-          // --- YENİ EKLENEN KISIM: Profil Kontrolü ---
-          try {
-            // Token ile kullanıcının kendi profiline istek atıyoruz
-            const userRes = await fetch('http://localhost:8080/users/me', {
-              headers: { 'Authorization': `Bearer ${data.access_token}` }
-            });
-            const userData = await userRes.json();
-
-            // Backend kuralı: interests listesi boşsa bu yeni bir kullanıcıdır.
-            if (userData.interests && userData.interests.length > 0) {
-              navigate('/home'); // İlgi alanları varsa ana sayfaya git
-            } else {
-              navigate('/onboarding'); // Yoksa kategori seçim ekranına git
-            }
-          } catch (profileError) {
-            setMessage({ text: 'Profil bilgileri alınamadı.', type: 'error' });
+          // Eğer ilgi alanı seçmemişse onboarding'e, seçmişse ana sayfaya[cite: 5]
+          if (userData.interests && userData.interests.length > 0) {
+            navigate('/home');
+          } else {
+            navigate('/onboarding');
           }
-
         } else {
-          setMessage({ text: 'Hata: ' + data.detail, type: 'error' });
+          alert("Giriş başarısız! Bilgilerini kontrol et.");
         }
       } catch (error) {
-        setMessage({ text: 'Sunucu bağlantı hatası!', type: 'error' });
+        console.error("Login hatası:", error);
       }
 
     } else {
-      // --- KAYIT (REGISTER) İŞLEMİ ---
-      // Backend UserCreate şeması beklediği için JSON kullanıyoruz.
+      // --- REGISTER İŞLEMİ ---
       try {
         const response = await fetch('http://localhost:8080/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, username, password })
+          body: JSON.stringify({ username, email, password }),
         });
 
-        const data = await response.json();
         if (response.ok) {
-          setMessage({ text: 'Kayıt Başarılı! Şimdi giriş yapabilirsin.', type: 'success' });
-          setIsLogin(true); // Kayıt başarılı olunca otomatik Login ekranına geç
-          setPassword('');  // Şifreyi güvenlik için temizle
+          alert("Kayıt başarılı! Şimdi giriş yapabilirsin.");
+          setIsLogin(true);
         } else {
-          setMessage({ text: 'Hata: ' + data.detail, type: 'error' });
+          const errorData = await response.json();
+          alert(errorData.detail || "Kayıt sırasında bir hata oluştu.");
         }
       } catch (error) {
-        setMessage({ text: 'Sunucu bağlantı hatası!', type: 'error' });
+        console.error("Kayıt hatası:", error);
       }
     }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1e1e2f', color: 'white', fontFamily: 'sans-serif' }}>
-      <div style={{ background: '#2a2a40', padding: '2.5rem', borderRadius: '12px', width: '350px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#fff' }}>
-          {isLogin ? 'Hoş Geldiniz' : 'Yeni Hesap Oluştur'}
-        </h2>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1e1e2f' }}>
+      <div style={{ backgroundColor: '#2a2a40', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', width: '400px', color: 'white' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>{isLogin ? 'Hoş Geldiniz' : 'Hesap Oluştur'}</h2>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input
+            type="text"
+            placeholder={isLogin ? "E-posta veya Kullanıcı Adı" : "Kullanıcı Adı"}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
+          />
           
-          {/* Kayıt Modundaysa Email Alanı Görünsün */}
           {!isLogin && (
-            <input 
-              type="email" 
-              placeholder="E-posta Adresi" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              style={inputStyle} 
-              required 
+            <input
+              type="email"
+              placeholder="E-posta"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
             />
           )}
-
-          {/* Girişte Esnek (Email/Kullanıcı Adı), Kayıtta Sadece Kullanıcı Adı */}
-          <input 
-            type="text" 
-            placeholder={isLogin ? "E-posta veya Kullanıcı Adı" : "Kullanıcı Adı"} 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
-            style={inputStyle} 
-            required 
+          
+          <input
+            type="password"
+            placeholder="Şifre"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
           />
-
-          <input 
-            type="password" 
-            placeholder="Şifre" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            style={inputStyle} 
-            required 
-          />
-
-          <button type="submit" style={buttonStyle}>
+          
+          <button type="submit" style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#646cff', color: 'white', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
             {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
           </button>
         </form>
 
-        {/* Mesaj Gösterimi */}
-        {message.text && (
-          <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', color: message.type === 'success' ? '#4caf50' : '#ff5252' }}>
-            {message.text}
-          </p>
-        )}
-
-        {/* Mod Değiştirme Butonu */}
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: '#aaa' }}>
-          {isLogin ? "Hesabın yok mu? " : "Zaten hesabın var mı? "}
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: '#aaa', fontSize: '0.9rem' }}>
+          {isLogin ? 'Hesabın yok mu?' : 'Zaten üye misin?'} 
           <span 
-            onClick={() => { setIsLogin(!isLogin); setMessage({text:'', type:''}); }} 
-            style={{ color: '#646cff', cursor: 'pointer', fontWeight: 'bold' }}
+            onClick={() => setIsLogin(!isLogin)} 
+            style={{ color: '#646cff', cursor: 'pointer', marginLeft: '5px', fontWeight: 'bold' }}
           >
             {isLogin ? 'Kayıt Ol' : 'Giriş Yap'}
           </span>
@@ -150,9 +125,5 @@ function Auth() {
     </div>
   );
 }
-
-// Ortak stiller (Kod kalabalığı yapmaması için ayırdık)
-const inputStyle = { padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#1e1e2f', color: '#fff', outline: 'none' };
-const buttonStyle = { padding: '12px', backgroundColor: '#646cff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', marginTop: '10px' };
 
 export default Auth;

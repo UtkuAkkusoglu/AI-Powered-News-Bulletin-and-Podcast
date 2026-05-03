@@ -171,7 +171,7 @@ def logout(response: Response, db: db_dependency, refresh_token: Annotated[Optio
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,  # set_cookie'deki değerin aynısı
+        secure=False,  # set_cookie'deki değerin aynısı   #Burak konuşuyor: Lokalde çalıştığımdan tarayıcı kabul etmiyor o yüzden kabul etsin diye false yapıyorum. Sonradan değiştirebilirsiniz asıl çalışmaya geçince.
         samesite="lax" # set_cookie'deki değerin aynısı
     )
 
