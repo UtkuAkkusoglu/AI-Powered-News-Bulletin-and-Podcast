@@ -226,6 +226,7 @@ yarn-error.log*
 *.mp3
 *.wav
 generated_audio/
+.scraper_seen_urls.json
 
 gcp-service-account.json
 ilerleme.md

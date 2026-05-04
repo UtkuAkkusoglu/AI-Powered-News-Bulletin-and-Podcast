@@ -1,5 +1,5 @@
 # 1. Hafif bir Python imajı ile başlıyoruz
-FROM python:3.8-slim
+FROM python:3.11-slim
 
 # 2. Python'ın logları anında ekrana basmasını sağlıyoruz (Buffer'ı kapatıyoruz)
 ENV PYTHONUNBUFFERED=1
