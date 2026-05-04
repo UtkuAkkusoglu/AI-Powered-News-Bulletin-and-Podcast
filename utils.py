@@ -3,7 +3,9 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 from config import settings
 from google.cloud import storage
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel
+from vertexai.language_models import TextEmbeddingModel, TextEmbeddingInput
 import os
 
 # Ayarları dosya başında değişkenlere atıyoruz
@@ -40,15 +42,18 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+_TASK_TYPE_MAP = {
+    "retrieval_document": "RETRIEVAL_DOCUMENT",
+    "retrieval_query": "RETRIEVAL_QUERY",
+}
+
 def get_embedding(text: str, task_type: str = "retrieval_document") -> list[float]:
-    """Gemini text-embedding-004 ile 768 boyutlu vektör üretir."""
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=text,
-        task_type=task_type,
-    )
-    return result["embedding"]
+    """Vertex AI text-embedding-004 ile 768 boyutlu vektör üretir."""
+    vertexai.init(project=settings.GCP_PROJECT_ID, location="europe-west4")
+    model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+    inputs = [TextEmbeddingInput(text, _TASK_TYPE_MAP.get(task_type, "RETRIEVAL_DOCUMENT"))]
+    embeddings = model.get_embeddings(inputs)
+    return embeddings[0].values
 
 
 def upload_to_gcs(file_path: str, destination_blob_name: str):
