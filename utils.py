@@ -57,6 +57,28 @@ def get_embedding(text: str, task_type: str = "retrieval_document") -> list[floa
     return response.embeddings[0].values
 
 
+def get_signed_audio_url(gcs_url: str, expiration_minutes: int = 60) -> str:
+    """GCS URL'inden 1 saatlik geçici imzalı link üretir."""
+    from google.oauth2 import service_account
+    from datetime import timedelta
+
+    bucket_name = "news-and-podcast-storage"
+    blob_name = gcs_url.split(f"{bucket_name}/")[-1]
+
+    credentials = service_account.Credentials.from_service_account_file(
+        settings.GOOGLE_APPLICATION_CREDENTIALS,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    )
+    storage_client = storage.Client(credentials=credentials)
+    blob = storage_client.bucket(bucket_name).blob(blob_name)
+    return blob.generate_signed_url(
+        expiration=timedelta(minutes=expiration_minutes),
+        method="GET",
+        version="v4",
+        credentials=credentials,
+    )
+
+
 def upload_to_gcs(file_path: str, destination_blob_name: str):
     """Cihan bu fonksiyonu kullanarak .mp3 dosyalarını GCS'ye yükleyecek."""
     bucket_name = "news-and-podcast-storage" 

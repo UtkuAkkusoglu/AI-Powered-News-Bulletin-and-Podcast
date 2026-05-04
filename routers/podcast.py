@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from typing_extensions import List, Annotated
 import schemas, models
 from dependencies import db_dependency, user_dependency
-from utils import upload_to_gcs
+from utils import upload_to_gcs, get_signed_audio_url
 
 router = APIRouter(
     prefix="/podcast",    # Tüm yolların başına otomatik /podcast ekler
@@ -32,6 +33,25 @@ def get_my_podcasts(
         "page": page,
         "size": size
     }
+
+@router.get("/{podcast_id}/audio")
+def stream_podcast_audio(podcast_id: int, db: db_dependency, current_user: user_dependency):
+    """
+    ### BURAK:
+    - Podcast sesini çalmak için bu endpoint'i kullan.
+    - 1 saatlik geçici bir GCS linki üretir ve oraya yönlendirir (302).
+    - Audio player'da src olarak direkt bu URL'yi kullanabilirsin.
+    """
+    podcast = db.query(models.Podcast).filter(
+        models.Podcast.id == podcast_id,
+        models.Podcast.user_id == current_user.id,
+    ).first()
+    if not podcast:
+        raise HTTPException(status_code=404, detail="Podcast bulunamadı.")
+
+    signed_url = get_signed_audio_url(podcast.audio_url)
+    return RedirectResponse(url=signed_url, status_code=302)
+
 
 @router.post("/", response_model=schemas.PodcastOut, status_code=status.HTTP_201_CREATED)
 def create_podcast(podcast: schemas.PodcastCreate, db: db_dependency, current_user: user_dependency):
