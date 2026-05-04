@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # --- Google Cloud & Celery Ayarları ---
     GOOGLE_APPLICATION_CREDENTIALS: str
     CELERY_BROKER_URL: str
+    GEMINI_API_KEY: str
 
     # Pydantic'e .env dosyasını nasıl okuyacağını söylüyoruz
     model_config = SettingsConfigDict(

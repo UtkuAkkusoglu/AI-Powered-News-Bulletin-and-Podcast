@@ -3,6 +3,7 @@ from typing_extensions import Optional
 import schemas, models
 from dependencies import db_dependency, user_dependency
 from worker import process_news_and_tts_task
+from utils import get_embedding
 
 router = APIRouter(
     prefix="/news",
@@ -27,24 +28,32 @@ def get_news(
     - Şimdilik basit bir 'Title Search' var.
     """
     query = db.query(models.News)
-    
+
     # Kategori Filtresi
     if category_id:
         query = query.filter(models.News.category_id == category_id)
 
-    # Arama Filtresi (Cihan burayı AI tabanlı yapacak)
     if search:
-        # Şimdilik basit arama, Cihan gelince burası 'vector_search(search)' olacak
-        query = query.filter(models.News.title.contains(search))
+        # Embedding'i olan haberler arasında cosine similarity ile semantic search
+        query_vector = get_embedding(search, task_type="retrieval_query")
+        query = (
+            query
+            .filter(models.News.embedding.isnot(None))
+            .order_by(models.News.embedding.cosine_distance(query_vector))
+        )
+        # Vector search'te pagination: tüm sıralı sonuçları al, slice et
+        all_results = query.all()
+        total_count = len(all_results)
+        items = all_results[(page - 1) * size : page * size]
+    else:
+        total_count = query.count()
+        items = query.offset((page - 1) * size).limit(size).all()
 
-    total_count = query.count()
-    items = query.offset((page - 1) * size).limit(size).all()
-    
     return {
         "items": items,
         "total_count": total_count,
         "page": page,
-        "size": size
+        "size": size,
     }
 
 @router.post("/", response_model=schemas.NewsDetailOut, status_code=status.HTTP_201_CREATED)

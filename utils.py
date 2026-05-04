@@ -3,6 +3,7 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 from config import settings
 from google.cloud import storage
+import google.generativeai as genai
 import os
 
 # Ayarları dosya başında değişkenlere atıyoruz
@@ -38,6 +39,17 @@ def create_refresh_token(data: dict):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def get_embedding(text: str, task_type: str = "retrieval_document") -> list[float]:
+    """Gemini text-embedding-004 ile 768 boyutlu vektör üretir."""
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    result = genai.embed_content(
+        model="models/text-embedding-004",
+        content=text,
+        task_type=task_type,
+    )
+    return result["embedding"]
+
 
 def upload_to_gcs(file_path: str, destination_blob_name: str):
     """Cihan bu fonksiyonu kullanarak .mp3 dosyalarını GCS'ye yükleyecek."""

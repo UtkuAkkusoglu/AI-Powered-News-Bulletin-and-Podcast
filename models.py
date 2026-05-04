@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 from datetime import datetime, timezone
+from pgvector.sqlalchemy import Vector
 
 # ==========================================
 # 1. ARA TABLO (KÖPRÜ / JUNCTION TABLE)  - Many-to-Many ilişkilerde kullanılır.
@@ -50,6 +51,8 @@ class News(Base):
     source_url = Column(String)
     image_url = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Gemini text-embedding-004 → 768 boyutlu vektör
+    embedding = Column(Vector(768), nullable=True)
 
     category = relationship("NewsCategory") # Relationship sayesinde isme ulaşacağız
 
