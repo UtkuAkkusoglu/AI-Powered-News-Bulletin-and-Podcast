@@ -1,8 +1,7 @@
 from celery import Celery
 from config import settings
 from utils import upload_to_gcs, get_embedding
-import vertexai
-from vertexai.generative_models import GenerativeModel
+from google import genai
 from google.cloud import texttospeech
 from database import SessionLocal
 import models
@@ -33,16 +32,22 @@ def process_news_and_tts_task(news_id: int, user_id: int):
 
         print(f"[Worker] Haber bulundu: '{news.title}' — Gemini ile özetleniyor...")
 
-        # 2. Gemini 2.0 Flash ile özetle (Vertex AI)
-        vertexai.init(project=settings.GCP_PROJECT_ID, location="europe-west4")
-        model = GenerativeModel("gemini-2.0-flash-001")
+        # 2. Gemini 2.5 Flash ile özetle (Vertex AI — google-genai SDK)
+        ai_client = genai.Client(
+            vertexai=True,
+            project=settings.GCP_PROJECT_ID,
+            location="us-central1",
+        )
         prompt = (
             "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
             "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
             "madde işareti veya başlık kullanma:\n\n"
             f"{news.content}"
         )
-        gemini_response = model.generate_content(prompt)
+        gemini_response = ai_client.models.generate_content(
+            model="publishers/google/models/gemini-2.5-flash",
+            contents=prompt,
+        )
         summary = gemini_response.text.strip()
 
         # Özeti News tablosuna kaydet

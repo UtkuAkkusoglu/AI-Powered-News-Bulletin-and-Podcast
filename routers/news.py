@@ -34,17 +34,22 @@ def get_news(
         query = query.filter(models.News.category_id == category_id)
 
     if search:
-        # Embedding'i olan haberler arasında cosine similarity ile semantic search
-        query_vector = get_embedding(search, task_type="retrieval_query")
-        query = (
-            query
-            .filter(models.News.embedding.isnot(None))
-            .order_by(models.News.embedding.cosine_distance(query_vector))
-        )
-        # Vector search'te pagination: tüm sıralı sonuçları al, slice et
-        all_results = query.all()
-        total_count = len(all_results)
-        items = all_results[(page - 1) * size : page * size]
+        try:
+            # Embedding'i olan haberler arasında cosine similarity ile semantic search
+            query_vector = get_embedding(search, task_type="retrieval_query")
+            vector_query = (
+                query
+                .filter(models.News.embedding.isnot(None))
+                .order_by(models.News.embedding.cosine_distance(query_vector))
+            )
+            all_results = vector_query.all()
+            total_count = len(all_results)
+            items = all_results[(page - 1) * size : page * size]
+        except Exception:
+            # Vertex AI erişimi yoksa title search'e düş
+            query = query.filter(models.News.title.contains(search))
+            total_count = query.count()
+            items = query.offset((page - 1) * size).limit(size).all()
     else:
         total_count = query.count()
         items = query.offset((page - 1) * size).limit(size).all()

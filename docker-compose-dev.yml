@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 1. Veritabanı Servisimiz
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: news-and-podcast-db
     restart: always
     env_file:
