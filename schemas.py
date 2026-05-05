@@ -104,7 +104,8 @@ class PodcastCreate(PodcastBase):
 class PodcastOut(PodcastBase):
     id: int
     user_id: int
-    created_at: datetime  # Podcast'in ne zaman oluşturulduğu bilgisi, API'den çıktı verirken faydalı olabilir.
+    news_id: Optional[int] = None
+    created_at: datetime
 
     class Config:
         from_attributes = True

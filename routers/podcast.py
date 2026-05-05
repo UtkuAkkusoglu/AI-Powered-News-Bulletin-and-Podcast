@@ -4,6 +4,7 @@ from typing_extensions import List, Annotated
 import schemas, models
 from dependencies import db_dependency, user_dependency
 from utils import upload_to_gcs, get_signed_audio_url
+from worker import process_news_and_tts_task
 
 router = APIRouter(
     prefix="/podcast",    # Tüm yolların başına otomatik /podcast ekler
@@ -51,6 +52,42 @@ def stream_podcast_audio(podcast_id: int, db: db_dependency, current_user: user_
 
     signed_url = get_signed_audio_url(podcast.audio_url)
     return RedirectResponse(url=signed_url, status_code=302)
+
+
+@router.post("/generate/{news_id}", status_code=status.HTTP_202_ACCEPTED)
+def generate_podcast(news_id: int, db: db_dependency, current_user: user_dependency):
+    """
+    Kullanıcı isteğiyle belirli bir haber için podcast oluşturur.
+    Zaten varsa mevcut podcast'i döner, yoksa Celery task başlatır.
+    """
+    existing = db.query(models.Podcast).filter(
+        models.Podcast.news_id == news_id,
+        models.Podcast.user_id == current_user.id,
+    ).first()
+    if existing:
+        return {"status": "exists", "podcast_id": existing.id}
+
+    news = db.query(models.News).filter(models.News.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="Haber bulunamadı.")
+
+    process_news_and_tts_task.delay(news_id, current_user.id)
+    return {"status": "processing"}
+
+
+@router.get("/by-news/{news_id}", response_model=schemas.PodcastOut)
+def get_podcast_by_news(news_id: int, db: db_dependency, current_user: user_dependency):
+    """
+    Belirli bir habere ait podcast'i döner. Yoksa 404.
+    Frontend bu endpoint'i polling ile kontrol eder.
+    """
+    podcast = db.query(models.Podcast).filter(
+        models.Podcast.news_id == news_id,
+        models.Podcast.user_id == current_user.id,
+    ).first()
+    if not podcast:
+        raise HTTPException(status_code=404, detail="Henüz podcast oluşturulmadı.")
+    return podcast
 
 
 @router.post("/", response_model=schemas.PodcastOut, status_code=status.HTTP_201_CREATED)

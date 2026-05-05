@@ -65,6 +65,7 @@ class Podcast(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     duration = Column(Integer, nullable=False) # Saniye cinsinden
+    news_id = Column(Integer, ForeignKey("news.id"), nullable=True)
 
     owner = relationship("User", back_populates="podcasts")
 
