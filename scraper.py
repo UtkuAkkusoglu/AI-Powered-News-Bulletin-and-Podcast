@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 """
-Türkçe haber kaynaklarından RSS ile haber çeken ve
-POST /news/ endpoint'ine yükleyen scraper.
+Türkçe haber kaynaklarından RSS ile haber çeken ve DB'ye kaydeden scraper.
 
 Kullanım:
-  python scraper.py --email kullanici@mail.com --password sifre
-  python scraper.py --email x@x.com --password sifre --limit 20
-  python scraper.py --email x@x.com --password sifre --api-url http://localhost:8081
-
-Ortam değişkenleri ile de kullanılabilir:
-  SCRAPER_EMAIL / SCRAPER_PASSWORD
+  python scraper.py
+  python scraper.py --limit 20
 """
 
 import argparse
@@ -162,100 +157,93 @@ def post_news(api_url: str, token: str, payload: dict) -> bool:
 
 # ─── Ana Akış ─────────────────────────────────────────────────────────────────
 
-def scrape(api_url: str, email: str, password: str, limit: int) -> None:
-    token = login(api_url, email, password)
-    if not token:
-        sys.exit(1)
+def scrape_to_db(limit: int = 0) -> dict:
+    """RSS kaynaklarından haber çekip direkt DB'ye kaydeder. Credential gerekmez."""
+    from database import SessionLocal
+    import models
 
-    category_map = get_category_map(api_url, token)
-    if not category_map:
-        print("[!] Kategori listesi boş — seed_data çalıştırıldı mı?")
-        sys.exit(1)
+    db = SessionLocal()
+    try:
+        categories = db.query(models.NewsCategory).all()
+        category_map = {cat.name: cat.id for cat in categories}
+        if not category_map:
+            print("[!] Kategori listesi boş — seed_data çalıştırıldı mı?")
+            sys.exit(1)
 
-    seen_urls = load_seen_urls()
-    uploaded = skipped_dup = skipped_content = 0
+        seen_urls = load_seen_urls()
+        uploaded = skipped_dup = skipped_content = 0
 
-    for source in RSS_SOURCES:
-        if limit and uploaded >= limit:
-            break
-
-        cat_name = source["category_name"]
-        cat_id = category_map.get(cat_name)
-        if cat_id is None:
-            print(f"\n[RSS] '{cat_name}' kategorisi bulunamadı, atlanıyor.")
-            continue
-
-        print(f"\n[RSS] {source['url']}  →  {cat_name} (id={cat_id})")
-        feed = feedparser.parse(source["url"])
-
-        if not feed.entries:
-            print("  Feed boş veya erişilemiyor.")
-            continue
-
-        for entry in feed.entries:
+        for source in RSS_SOURCES:
             if limit and uploaded >= limit:
                 break
 
-            source_url = entry.get("link", "").strip()
-            if not source_url:
+            cat_name = source["category_name"]
+            cat_id = category_map.get(cat_name)
+            if cat_id is None:
+                print(f"\n[RSS] '{cat_name}' kategorisi bulunamadı, atlanıyor.")
                 continue
 
-            if source_url in seen_urls:
-                skipped_dup += 1
+            print(f"\n[RSS] {source['url']}  →  {cat_name} (id={cat_id})")
+            feed = feedparser.parse(source["url"])
+
+            if not feed.entries:
+                print("  Feed boş veya erişilemiyor.")
                 continue
 
-            title = entry.get("title", "Başlık Yok").strip()
-            print(f"  → {title[:75]}")
+            for entry in feed.entries:
+                if limit and uploaded >= limit:
+                    break
 
-            content = extract_content(source_url)
-            seen_urls.add(source_url)
+                source_url = entry.get("link", "").strip()
+                if not source_url:
+                    continue
 
-            if not content:
-                print("    İçerik çıkarılamadı, atlanıyor.")
-                skipped_content += 1
-                continue
+                if source_url in seen_urls:
+                    skipped_dup += 1
+                    continue
 
-            payload = {
-                "title": title,
-                "content": content,
-                "category_id": cat_id,
-                "source_url": source_url,
-                "image_url": extract_image(entry),
-            }
+                title = entry.get("title", "Başlık Yok").strip()
+                print(f"  → {title[:75]}")
 
-            if post_news(api_url, token, payload):
+                content = extract_content(source_url)
+                seen_urls.add(source_url)
+
+                if not content:
+                    print("    İçerik çıkarılamadı, atlanıyor.")
+                    skipped_content += 1
+                    continue
+
+                news = models.News(
+                    title=title,
+                    content=content,
+                    category_id=cat_id,
+                    source_url=source_url,
+                    image_url=extract_image(entry),
+                )
+                db.add(news)
                 uploaded += 1
                 print(f"    ✓ Yüklendi [{uploaded}/{limit or '∞'}]")
-            else:
-                skipped_content += 1
+                time.sleep(REQUEST_DELAY)
 
-            time.sleep(REQUEST_DELAY)
+        db.commit()
+        save_seen_urls(seen_urls)
 
-    save_seen_urls(seen_urls)
+        print("\n─── Scraper Tamamlandı ──────────────────────")
+        print(f"  Yüklenen : {uploaded}")
+        print(f"  Tekrar   : {skipped_dup}")
+        print(f"  Atlanan  : {skipped_content}")
+        return {"uploaded": uploaded, "skipped_dup": skipped_dup, "skipped_content": skipped_content}
 
-    print("\n─── Scraper Tamamlandı ──────────────────────")
-    print(f"  Yüklenen : {uploaded}")
-    print(f"  Tekrar   : {skipped_dup}")
-    print(f"  Atlanan  : {skipped_content}")
+    except Exception as e:
+        db.rollback()
+        print(f"[!] Hata: {e}")
+        raise
+    finally:
+        db.close()
 
 
 def main():
     parser = argparse.ArgumentParser(description="AI News Bulletin — Haber Scraper")
-    parser.add_argument(
-        "--api-url",
-        default=os.getenv("API_URL", "http://localhost:8081"),
-        help="API base URL (default: http://localhost:8081)",
-    )
-    parser.add_argument(
-        "--email",
-        default=os.getenv("SCRAPER_EMAIL", ""),
-        help="Kullanıcı e-posta / username",
-    )
-    parser.add_argument(
-        "--password",
-        default=os.getenv("SCRAPER_PASSWORD", ""),
-        help="Kullanıcı şifresi",
-    )
     parser.add_argument(
         "--limit",
         type=int,
@@ -263,14 +251,7 @@ def main():
         help="Maksimum yüklenecek haber sayısı (0 = sınırsız)",
     )
     args = parser.parse_args()
-
-    if not args.email or not args.password:
-        parser.error(
-            "--email ve --password zorunlu "
-            "(ya da SCRAPER_EMAIL / SCRAPER_PASSWORD env değişkenleri)"
-        )
-
-    scrape(args.api_url, args.email, args.password, args.limit)
+    scrape_to_db(args.limit)
 
 
 if __name__ == "__main__":

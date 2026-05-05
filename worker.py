@@ -6,6 +6,7 @@ from google.cloud import texttospeech
 from database import SessionLocal
 import models
 import os
+import time
 
 CELERY_BROKER_URL = settings.CELERY_BROKER_URL
 
@@ -98,6 +99,7 @@ def process_news_and_tts_task(news_id: int, user_id: int):
             audio_url=audio_url,
             user_id=user_id,
             duration=duration_seconds,
+            news_id=news_id,
         )
         db.add(podcast)
         db.commit()
@@ -114,3 +116,16 @@ def process_news_and_tts_task(news_id: int, user_id: int):
         db.close()
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@celery_app.task(name="run_scraper")
+def run_scraper_task():
+    import sys
+    if "/app" not in sys.path:
+        sys.path.insert(0, "/app")
+    from scraper import scrape_to_db
+    try:
+        result = scrape_to_db()
+        return {"status": "success", **result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

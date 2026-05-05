@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing_extensions import Optional
 import schemas, models
 from dependencies import db_dependency, user_dependency
-from worker import process_news_and_tts_task
 from utils import get_embedding
+from worker import run_scraper_task
 
 router = APIRouter(
     prefix="/news",
@@ -49,10 +49,10 @@ def get_news(
             # Vertex AI erişimi yoksa title search'e düş
             query = query.filter(models.News.title.contains(search))
             total_count = query.count()
-            items = query.offset((page - 1) * size).limit(size).all()
+            items = query.order_by(models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
     else:
         total_count = query.count()
-        items = query.offset((page - 1) * size).limit(size).all()
+        items = query.order_by(models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
 
     return {
         "items": items,
@@ -72,16 +72,10 @@ def create_news(news: schemas.NewsCreate, db: db_dependency, current_user: user_
     ### Teknik Detay:
     - `.delay()` kullanımı sayesinde API cevabı bekletmez, işi Redis üzerinden Worker'a paslar.
     """
-    # 1. Haberi DB'ye kaydet
     new_news = models.News(**news.dict())
     db.add(new_news)
     db.commit()
     db.refresh(new_news)
-    
-    # 2. CIHAN İÇİN OTOMATİK MOTORU ÇALIŞTIR (Celery Tetikleme)
-    # Bu satır sayesinde haber eklendiği an arka planda ses üretimi başlar.
-    process_news_and_tts_task.delay(new_news.id, current_user.id)
-    
     return new_news
 
 @router.post("/{news_id}/click")
@@ -134,6 +128,12 @@ def track_news_click(news_id: int, current_user: user_dependency, db: db_depende
             }
 
     return {"suggestion": None, "message": "Click tracked."}
+
+@router.post("/refresh", status_code=status.HTTP_202_ACCEPTED)
+def refresh_news(current_user: user_dependency):
+    run_scraper_task.delay()
+    return {"status": "processing"}
+
 
 @router.get("/{news_id}", response_model=schemas.NewsDetailOut)
 def get_news_detail(news_id: int, db: db_dependency, current_user: user_dependency):
