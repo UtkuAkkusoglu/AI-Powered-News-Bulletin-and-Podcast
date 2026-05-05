@@ -59,8 +59,9 @@ class NewsBase(BaseModel):
     title: str
     category_id: int
     source_url: Optional[str] = None
-    image_url: Optional[str] = None   # habere görsel eklemek isteyebiliriz, bu opsiyonel bir alan olabilir. Eğer yoksa frontend'de default bir görsel gösterilir.
+    image_url: Optional[str] = None
     summary: Optional[str] = None
+    published_at: Optional[datetime] = None
 
 class NewsCreate(NewsBase):
     content: str

@@ -49,10 +49,10 @@ def get_news(
             # Vertex AI erişimi yoksa title search'e düş
             query = query.filter(models.News.title.contains(search))
             total_count = query.count()
-            items = query.order_by(models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
+            items = query.order_by(models.News.published_at.desc().nullslast(), models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
     else:
         total_count = query.count()
-        items = query.order_by(models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
+        items = query.order_by(models.News.published_at.desc().nullslast(), models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
 
     return {
         "items": items,

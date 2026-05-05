@@ -8,26 +8,30 @@ function Home() {
   const [suggestion, setSuggestion] = useState(null);
   const [selectedNews, setSelectedNews] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [podcastStatus, setPodcastStatus] = useState('idle'); // 'idle' | 'processing' | 'ready'
+  const [podcastStatus, setPodcastStatus] = useState('idle');
   const [podcastId, setPodcastId] = useState(null);
   const pollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   useEffect(() => {
-    fetchNews();
-  }, []);
+    fetchNews(searchTerm, page, pageSize);
+  }, [page, pageSize]);
 
-  const fetchNews = async (query = '') => {
+  const fetchNews = async (query = '', p = page, size = pageSize) => {
     setLoading(true);
     try {
-      let url = `${import.meta.env.VITE_API_URL}/news/`;
-      if (query) url += `?search=${query}`; 
-
-      // Token eklemeye gerek yok, api.js hallediyor!
-      const response = await fetchWithAuth(url);
+      const params = new URLSearchParams({ page: p, size });
+      if (query) params.set('search', query);
+      const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
       if (response.ok) {
         const data = await response.json();
         setNewsList(data.items);
+        setTotalCount(data.total_count);
       }
     } catch (error) {
       console.error("Haberler çekilirken hata:", error);
@@ -36,23 +40,34 @@ function Home() {
     }
   };
 
+  const handleSearch = () => {
+    setPage(1);
+    fetchNews(searchTerm, 1, pageSize);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    const prevCount = newsList.length;
     try {
       await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { method: 'POST' });
-      // Haber sayısı artana kadar her 4 saniyede bir kontrol et (max 2 dk)
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
         try {
-          const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/`);
+          const params = new URLSearchParams({ page: 1, size: pageSize });
+          const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
           if (res.ok) {
             const data = await res.json();
-            if (data.total_count > prevCount || attempts >= 30) {
+            if (data.total_count > totalCount || attempts >= 30) {
               clearInterval(poll);
+              setPage(1);
               setNewsList(data.items);
+              setTotalCount(data.total_count);
               setRefreshing(false);
             }
           }
@@ -205,11 +220,11 @@ function Home() {
               placeholder="Haberlerde ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchNews(searchTerm)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               style={{ padding: '8px 12px', borderRadius: '5px', border: 'none', backgroundColor: '#333', color: 'white', outline: 'none' }}
             />
             <button
-              onClick={() => fetchNews(searchTerm)}
+              onClick={handleSearch}
               style={{ padding: '8px 15px', borderRadius: '5px', border: 'none', backgroundColor: '#646cff', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
             >
               Ara
@@ -231,22 +246,97 @@ function Home() {
             Aramana uygun haber bulunamadı veya henüz sisteme haber girilmemiş.
           </p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-            {newsList.map((news) => (
-              <div 
-                key={news.id} 
-                onClick={() => handleNewsClick(news.id)}
-                style={{ backgroundColor: '#2a2a40', padding: '1.5rem', borderRadius: '10px', cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-                onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#646cff' }}>{news.title}</h3>
-                <p style={{ color: '#aaa', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  {news.summary ? news.summary : "Bu haberin özeti bulunmuyor."}
-                </p>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+              {newsList.map((news) => (
+                <div
+                  key={news.id}
+                  onClick={() => handleNewsClick(news.id)}
+                  style={{ backgroundColor: '#2a2a40', padding: '1.5rem', borderRadius: '10px', cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#646cff' }}>{news.title}</h3>
+                  <p style={{ color: '#aaa', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    {news.summary ? news.summary : "Bu haberin özeti bulunmuyor."}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ color: '#aaa', fontSize: '0.9rem' }}>
+                Toplam {totalCount} haber — Sayfa {page} / {totalPages}
               </div>
-            ))}
-          </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#aaa', fontSize: '0.9rem' }}>Sayfa başı:</span>
+                {[10, 25, 50, 100].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => handlePageSizeChange(size)}
+                    style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', backgroundColor: pageSize === size ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: pageSize === size ? 'bold' : 'normal' }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === 1 ? '#222' : '#444', color: page === 1 ? '#666' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  ←
+                </button>
+
+                {(() => {
+                  const buttons = [];
+                  const delta = 2;
+                  const left = Math.max(2, page - delta);
+                  const right = Math.min(totalPages - 1, page + delta);
+
+                  buttons.push(
+                    <button key={1} onClick={() => setPage(1)}
+                      style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === 1 ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: page === 1 ? 'bold' : 'normal' }}>
+                      1
+                    </button>
+                  );
+
+                  if (left > 2) buttons.push(<span key="l-dots" style={{ color: '#aaa', padding: '0 4px' }}>…</span>);
+
+                  for (let i = left; i <= right; i++) {
+                    buttons.push(
+                      <button key={i} onClick={() => setPage(i)}
+                        style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === i ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: page === i ? 'bold' : 'normal' }}>
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  if (right < totalPages - 1) buttons.push(<span key="r-dots" style={{ color: '#aaa', padding: '0 4px' }}>…</span>);
+
+                  if (totalPages > 1) buttons.push(
+                    <button key={totalPages} onClick={() => setPage(totalPages)}
+                      style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === totalPages ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: page === totalPages ? 'bold' : 'normal' }}>
+                      {totalPages}
+                    </button>
+                  );
+
+                  return buttons;
+                })()}
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === totalPages ? '#222' : '#444', color: page === totalPages ? '#666' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {selectedNews && (

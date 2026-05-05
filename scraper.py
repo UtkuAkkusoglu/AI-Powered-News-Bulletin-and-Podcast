@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
@@ -112,6 +113,14 @@ def extract_image(entry) -> str | None:
         return entry.media_content[0].get("url")
     if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
         return entry.media_thumbnail[0].get("url")
+    return None
+
+
+def extract_published_at(entry) -> datetime | None:
+    """RSS entry'den yayın tarihini çıkarır."""
+    t = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
+    if t:
+        return datetime(*t[:6], tzinfo=timezone.utc)
     return None
 
 
@@ -219,6 +228,7 @@ def scrape_to_db(limit: int = 0) -> dict:
                     category_id=cat_id,
                     source_url=source_url,
                     image_url=extract_image(entry),
+                    published_at=extract_published_at(entry),
                 )
                 db.add(news)
                 uploaded += 1

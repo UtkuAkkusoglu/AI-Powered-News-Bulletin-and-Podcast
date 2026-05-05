@@ -50,6 +50,7 @@ class News(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     source_url = Column(String)
     image_url = Column(String)
+    published_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     # Gemini text-embedding-004 → 768 boyutlu vektör
     embedding = Column(Vector(768), nullable=True)
