@@ -15,18 +15,41 @@ function Home() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [userInterests, setUserInterests] = useState([]);
+  const [activeCategoryId, setActiveCategoryId] = useState(null); // null = ilgi alanları, 0 = tümü, N = kategori id
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
   useEffect(() => {
-    fetchNews(searchTerm, page, pageSize);
-  }, [page, pageSize]);
+    const loadUser = async () => {
+      try {
+        const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
+        if (res.ok) {
+          const data = await res.json();
+          setUserInterests(data.interests || []);
+        }
+      } catch (_) {}
+    };
+    loadUser();
+  }, []);
 
-  const fetchNews = async (query = '', p = page, size = pageSize) => {
+  useEffect(() => {
+    fetchNews(searchTerm, page, pageSize, activeCategoryId);
+  }, [page, pageSize, activeCategoryId]);
+
+  const fetchNews = async (query = '', p = page, size = pageSize, catId = activeCategoryId) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: p, size });
       if (query) params.set('search', query);
+      if (catId === 0) {
+        // Tümü — filtre yok
+      } else if (catId) {
+        params.set('category_id', catId);
+      } else {
+        // null = ilgi alanlarına göre
+        params.set('interests_only', 'true');
+      }
       const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
       if (response.ok) {
         const data = await response.json();
@@ -42,7 +65,12 @@ function Home() {
 
   const handleSearch = () => {
     setPage(1);
-    fetchNews(searchTerm, 1, pageSize);
+    fetchNews(searchTerm, 1, pageSize, activeCategoryId);
+  };
+
+  const handleCategoryChange = (catId) => {
+    setActiveCategoryId(catId);
+    setPage(1);
   };
 
   const handlePageSizeChange = (newSize) => {
@@ -60,6 +88,9 @@ function Home() {
         attempts++;
         try {
           const params = new URLSearchParams({ page: 1, size: pageSize });
+          if (activeCategoryId === 0) { /* tümü */ }
+          else if (activeCategoryId) params.set('category_id', activeCategoryId);
+          else params.set('interests_only', 'true');
           const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
           if (res.ok) {
             const data = await res.json();
@@ -238,6 +269,37 @@ function Home() {
             </button>
           </div>
         </div>
+
+        {userInterests.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+            {[
+              { id: null, name: 'İlgi Alanlarım' },
+              { id: 0,    name: 'Tümü' },
+              ...userInterests,
+            ].map(cat => {
+              const isActive = activeCategoryId === cat.id;
+              return (
+                <button
+                  key={cat.id ?? 'interests'}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: '20px',
+                    border: isActive ? '2px solid #646cff' : '1px solid #444',
+                    backgroundColor: isActive ? '#646cff' : '#2a2a40',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontWeight: isActive ? 'bold' : 'normal',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {cat.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {loading ? (
           <p>Haberler yükleniyor...</p>

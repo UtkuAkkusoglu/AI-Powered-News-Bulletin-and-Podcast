@@ -12,24 +12,22 @@ router = APIRouter(
 
 @router.get("/", response_model=schemas.NewsPagination)
 def get_news(
-    db: db_dependency, 
+    db: db_dependency,
     current_user: user_dependency,
-    page: int = 1, 
+    page: int = 1,
     size: int = 10,
-    search: Optional[str] = None, 
-    category_id: Optional[int] = None 
+    search: Optional[str] = None,
+    category_id: Optional[int] = None,
+    interests_only: bool = False,
 ):
-    """
-    ### BURAK (Frontend):
-    - Ana haber akışını ve aramayı buradan yönetirsin.
-    
-    ### CIHAN (AI):
-    - 'search' parametresi dolu gelirse, buraya yazdığın AI tabanlı arama motoru (Embedding + Vector Search) devreye girecek.
-    - Şimdilik basit bir 'Title Search' var.
-    """
     query = db.query(models.News)
 
-    # Kategori Filtresi
+    # İlgi alanlarına göre filtrele
+    if interests_only and current_user.interests:
+        interest_ids = [cat.id for cat in current_user.interests]
+        query = query.filter(models.News.category_id.in_(interest_ids))
+
+    # Tek kategori filtresi
     if category_id:
         query = query.filter(models.News.category_id == category_id)
 
