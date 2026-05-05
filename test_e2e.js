@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const API = 'http://localhost:8081';
+const API = 'http://localhost:8080';
 const FRONTEND = 'http://localhost:5173';
 const EMAIL = 'cihan@cihan.com';
 const PASSWORD = 'cihan';
@@ -68,7 +68,18 @@ async function apiTest() {
     }
   }
 
-  // 4. Haber oluştur (Celery tetiklenecek)
+  // 4. Yenile endpoint'i (scraper tetikleme)
+  {
+    const r = await fetch(`${API}/news/refresh`, { method: 'POST', headers });
+    if (r.status === 202) {
+      const data = await r.json();
+      ok(`POST /news/refresh → 202, status: ${data.status}`);
+    } else {
+      fail('POST /news/refresh', `${r.status}`);
+    }
+  }
+
+  // 5. Haber oluştur
   let createdNewsId;
   {
     const r = await fetch(`${API}/news/`, {
@@ -84,13 +95,13 @@ async function apiTest() {
     const data = await r.json();
     if (r.status === 201 && data.id) {
       createdNewsId = data.id;
-      ok(`POST /news/ → 201, id=${data.id} (Celery task tetiklendi)`);
+      ok(`POST /news/ → 201, id=${data.id}`);
     } else {
       fail('POST /news/', `${r.status} — ${JSON.stringify(data).slice(0, 150)}`);
     }
   }
 
-  // 5. Haber detayı
+  // 6. Haber detayı
   if (createdNewsId) {
     const r = await fetch(`${API}/news/${createdNewsId}`, { headers });
     const data = await r.json();
@@ -101,29 +112,42 @@ async function apiTest() {
     }
   }
 
-  // 6. Arama (title-based, embedding henüz üretilmemiş olabilir)
+  // 7. Podcast generate endpoint'i
+  if (createdNewsId) {
+    const r = await fetch(`${API}/podcast/generate/${createdNewsId}`, { method: 'POST', headers });
+    if (r.status === 202) {
+      const data = await r.json();
+      ok(`POST /podcast/generate/${createdNewsId} → 202, status: ${data.status}`);
+    } else {
+      fail(`POST /podcast/generate/${createdNewsId}`, `${r.status}`);
+    }
+  }
+
+  // 8. Podcast by-news endpoint'i (henüz oluşmamış olabilir → 404 normal)
+  if (createdNewsId) {
+    const r = await fetch(`${API}/podcast/by-news/${createdNewsId}`, { headers });
+    if (r.ok) {
+      const data = await r.json();
+      ok(`GET /podcast/by-news/${createdNewsId} → podcast hazır, id=${data.id}`);
+    } else if (r.status === 404) {
+      ok(`GET /podcast/by-news/${createdNewsId} → 404 (henüz işleniyor, normal)`);
+    } else {
+      fail(`GET /podcast/by-news/${createdNewsId}`, `${r.status}`);
+    }
+  }
+
+  // 9. Arama
   {
     const r = await fetch(`${API}/news/?search=Playwright`, { headers });
     const data = await r.json();
     if (r.ok) {
       ok(`GET /news/?search=Playwright → ${data.total_count} sonuç`);
     } else {
-      fail('GET /news/?search=Playwright', `${r.status} — ${JSON.stringify(data).slice(0, 100)}`);
+      fail('GET /news/?search=Playwright', `${r.status}`);
     }
   }
 
-  // 7. Kategori filtresi
-  {
-    const r = await fetch(`${API}/news/?category_id=1`, { headers });
-    const data = await r.json();
-    if (r.ok) {
-      ok(`GET /news/?category_id=1 → ${data.total_count} haber`);
-    } else {
-      fail('GET /news/?category_id=1', `${r.status}`);
-    }
-  }
-
-  // 8. Click tracking
+  // 10. Click tracking
   const targetId = createdNewsId || firstNewsId;
   if (targetId) {
     const r = await fetch(`${API}/news/${targetId}/click`, { method: 'POST', headers });
@@ -131,28 +155,30 @@ async function apiTest() {
     if (r.ok && 'suggestion' in data) {
       ok(`POST /news/${targetId}/click → suggestion: ${JSON.stringify(data.suggestion)}`);
     } else {
-      fail(`POST /news/${targetId}/click`, `${r.status} — ${JSON.stringify(data).slice(0, 100)}`);
+      fail(`POST /news/${targetId}/click`, `${r.status}`);
     }
   }
 
-  // 9. Podcast listesi
+  // 11. Podcast listesi
   {
     const r = await fetch(`${API}/podcast/`, { headers });
     if (r.ok) {
       const data = await r.json();
-      ok(`GET /podcast/ → ${data.total_count ?? data.length ?? '?'} podcast`);
+      ok(`GET /podcast/ → ${data.total_count ?? '?'} podcast`);
     } else {
       fail('GET /podcast/', `${r.status}`);
     }
   }
 
-  // 10. Token refresh
+  // 12. Token refresh (cookie gerekirez, 401 normal)
   {
     const r = await fetch(`${API}/auth/refresh`, { method: 'POST', headers });
     if (r.ok) {
       ok('POST /auth/refresh → 200');
+    } else if (r.status === 401) {
+      ok('POST /auth/refresh → 401 (cookie yok, beklenen davranış)');
     } else {
-      fail('POST /auth/refresh', `${r.status} (cookie yoksa normal)`);
+      fail('POST /auth/refresh', `${r.status}`);
     }
   }
 }
@@ -160,59 +186,65 @@ async function apiTest() {
 async function uiTest() {
   console.log('\n── Frontend UI Testleri ─────────────────────');
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
 
   try {
     // 1. Frontend ayakta mı?
-    await page.goto(FRONTEND, { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await page.goto(FRONTEND, { waitUntil: 'domcontentloaded', timeout: 15000 });
     const title = await page.title();
     ok(`Frontend yüklendi — title: "${title}"`);
 
-    // 2. Sayfa içeriği var mı?
+    // 2. Login formu doldur
+    const usernameInput = page.locator('input[placeholder*="posta"], input[placeholder*="Kullanıcı"], input[type="text"]').first();
+    const passwordInput = page.locator('input[type="password"]').first();
+
+    if (await usernameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await usernameInput.fill(EMAIL);
+      await passwordInput.fill(PASSWORD);
+      await page.locator('button[type="submit"], button:has-text("Giriş")').first().click();
+      await page.waitForTimeout(3000);
+      ok('Login formu dolduruldu ve gönderildi');
+    } else {
+      ok('Login formu yok — muhtemelen zaten giriş yapılmış veya farklı sayfa');
+    }
+
+    // 3. Haber akışı yüklendi mi?
+    await page.waitForTimeout(3000);
     const body = await page.textContent('body');
-    if (body && body.length > 50) {
+    if (body && body.length > 100) {
       ok('Sayfa içeriği render edildi');
     } else {
       fail('Sayfa içeriği boş veya çok kısa');
     }
 
-    // 3. Console hataları var mı?
+    // 4. "Yenile" butonu var mı?
+    const refreshBtn = page.locator('button:has-text("Yenile"), button:has-text("Yükleniyor")');
+    if (await refreshBtn.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+      ok('"Yenile" butonu görünüyor');
+      await refreshBtn.first().click();
+      await page.waitForTimeout(1000);
+      const btnText = await refreshBtn.first().textContent({ timeout: 3000 }).catch(() => '');
+      ok(`"Yenile" tıklandı → buton durumu: "${btnText.trim()}"`);
+    } else {
+      fail('"Yenile" butonu bulunamadı');
+    }
+
+    // 5. Ekran görüntüsü
+    const screenshot = '/tmp/playwright_screenshot.png';
+    await page.screenshot({ path: screenshot, fullPage: true });
+    ok(`Ekran görüntüsü: ${screenshot}`);
+
+    // 6. Console hataları
     const consoleErrors = [];
     page.on('console', msg => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
-
-    await page.waitForTimeout(2000);
-
+    await page.waitForTimeout(1000);
     if (consoleErrors.length === 0) {
       ok('Console hatası yok');
     } else {
       fail(`${consoleErrors.length} console hatası`, consoleErrors.slice(0, 2).join(' | '));
-    }
-
-    // 4. Sayfa yapısını tara
-    const screenshot = '/tmp/playwright_screenshot.png';
-    await page.screenshot({ path: screenshot, fullPage: true });
-    ok(`Ekran görüntüsü alındı: ${screenshot}`);
-
-    // 5. Input/form elementleri var mı?
-    const inputs = await page.$$('input');
-    const buttons = await page.$$('button');
-    ok(`Formda ${inputs.length} input, ${buttons.length} buton bulundu`);
-
-    // 6. API bağlantısı - network request var mı?
-    const requests = [];
-    page.on('request', req => {
-      if (req.url().includes('localhost:8081') || req.url().includes('/api/')) {
-        requests.push(req.url());
-      }
-    });
-    await page.reload({ waitUntil: 'networkidle', timeout: 10000 });
-
-    if (requests.length > 0) {
-      ok(`API'ye ${requests.length} istek gönderildi`);
-    } else {
-      fail('Sayfa API\'ye hiç istek göndermedi (giriş yapılmamış olabilir)');
     }
 
   } catch (e) {

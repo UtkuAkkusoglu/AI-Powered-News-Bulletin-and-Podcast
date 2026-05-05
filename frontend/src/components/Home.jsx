@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Navbar from './Navbar';
-import { fetchWithAuth } from '../Utils/api'; // YENİ: Süper kahramanımızı içeri aldık
+import { fetchWithAuth } from '../Utils/api';
 
 function Home() {
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [suggestion, setSuggestion] = useState(null);
-  const [selectedNews, setSelectedNews] = useState(null); 
+  const [selectedNews, setSelectedNews] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [podcastStatus, setPodcastStatus] = useState('idle'); // 'idle' | 'processing' | 'ready'
+  const [podcastId, setPodcastId] = useState(null);
+  const pollRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchNews();
@@ -32,7 +36,61 @@ function Home() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const prevCount = newsList.length;
+    try {
+      await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { method: 'POST' });
+      // Haber sayısı artana kadar her 4 saniyede bir kontrol et (max 2 dk)
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.total_count > prevCount || attempts >= 30) {
+              clearInterval(poll);
+              setNewsList(data.items);
+              setRefreshing(false);
+            }
+          }
+        } catch (_) {}
+      }, 4000);
+    } catch (error) {
+      console.error("Yenileme hatası:", error);
+      setRefreshing(false);
+    }
+  };
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  const startPolling = (newsId) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPodcastId(data.id);
+          setPodcastStatus('ready');
+          stopPolling();
+        }
+      } catch (_) {}
+    }, 3000);
+  };
+
   const handleNewsClick = async (newsId) => {
+    setPodcastStatus('idle');
+    setPodcastId(null);
+    stopPolling();
+
     try {
       const detailResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`);
       if (detailResponse.ok) {
@@ -42,6 +100,16 @@ function Home() {
     } catch (error) {
       console.error("Detay çekilemedi:", error);
     }
+
+    // Daha önce podcast oluşturulmuş mu?
+    try {
+      const podRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
+      if (podRes.ok) {
+        const podData = await podRes.json();
+        setPodcastId(podData.id);
+        setPodcastStatus('ready');
+      }
+    } catch (_) {}
 
     try {
       const clickResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/click`, {
@@ -57,6 +125,38 @@ function Home() {
     } catch (error) {
       console.error("Tıklama takip hatası:", error);
     }
+  };
+
+  const handleGeneratePodcast = async () => {
+    if (!selectedNews || podcastStatus === 'processing') return;
+    setPodcastStatus('processing');
+    try {
+      const res = await fetchWithAuth(
+        `${import.meta.env.VITE_API_URL}/podcast/generate/${selectedNews.id}`,
+        { method: 'POST' }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'exists') {
+          setPodcastId(data.podcast_id);
+          setPodcastStatus('ready');
+        } else {
+          startPolling(selectedNews.id);
+        }
+      } else {
+        setPodcastStatus('idle');
+      }
+    } catch (error) {
+      console.error("Podcast oluşturma hatası:", error);
+      setPodcastStatus('idle');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setSelectedNews(null);
+    setPodcastStatus('idle');
+    setPodcastId(null);
+    stopPolling();
   };
 
   const handleAcceptSuggestion = async () => {
@@ -100,19 +200,26 @@ function Home() {
           <h2 style={{ margin: 0 }}>Ana Haber Akışı</h2>
           
           <div style={{ display: 'flex', gap: '5px' }}>
-            <input 
-              type="text" 
-              placeholder="Haberlerde ara..." 
+            <input
+              type="text"
+              placeholder="Haberlerde ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchNews(searchTerm)}
               style={{ padding: '8px 12px', borderRadius: '5px', border: 'none', backgroundColor: '#333', color: 'white', outline: 'none' }}
             />
-            <button 
+            <button
               onClick={() => fetchNews(searchTerm)}
               style={{ padding: '8px 15px', borderRadius: '5px', border: 'none', backgroundColor: '#646cff', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
             >
               Ara
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{ padding: '8px 15px', borderRadius: '5px', border: 'none', backgroundColor: refreshing ? '#555' : '#2a9d8f', color: 'white', cursor: refreshing ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+            >
+              {refreshing ? '⏳ Yükleniyor...' : '🔄 Yenile'}
             </button>
           </div>
         </div>
@@ -145,8 +252,8 @@ function Home() {
         {selectedNews && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ backgroundColor: '#2a2a40', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
-              <button 
-                onClick={() => setSelectedNews(null)} 
+              <button
+                onClick={handleCloseModal}
                 style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: '#ff5252', fontSize: '1.5rem', cursor: 'pointer' }}
               >
                 ✖
@@ -157,6 +264,28 @@ function Home() {
               </p>
               <div style={{ lineHeight: '1.8', color: '#eee', whiteSpace: 'pre-wrap' }}>
                 {selectedNews.content}
+              </div>
+
+              <div style={{ marginTop: '1.5rem', borderTop: '1px solid #444', paddingTop: '1rem' }}>
+                {podcastStatus === 'idle' && (
+                  <button
+                    onClick={handleGeneratePodcast}
+                    style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#646cff', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem' }}
+                  >
+                    🎙 Podcast Oluştur
+                  </button>
+                )}
+                {podcastStatus === 'processing' && (
+                  <p style={{ color: '#aaa', fontStyle: 'italic' }}>⏳ Podcast oluşturuluyor, lütfen bekle...</p>
+                )}
+                {podcastStatus === 'ready' && podcastId && (
+                  <div>
+                    <p style={{ color: '#4caf50', fontWeight: 'bold', marginBottom: '8px' }}>🎧 Podcast hazır!</p>
+                    <audio controls style={{ width: '100%' }}>
+                      <source src={`${import.meta.env.VITE_API_URL}/podcast/${podcastId}/audio`} type="audio/mpeg" />
+                    </audio>
+                  </div>
+                )}
               </div>
             </div>
           </div>
