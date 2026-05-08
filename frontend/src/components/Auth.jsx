@@ -1,57 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Auth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState(''); // Backend hem email hem username kabul eder
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
+  // --- TOAST SİSTEMİ (BOZMADAN EKLENDİ) ---
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast((prev) => ({ ...prev, show: false }));
+      }, 2000); // Tam 2 saniye sonra kapanır
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (isLogin) {
-      // --- LOGIN İŞLEMİ ---
-      // Backend OAuth2PasswordRequestForm beklediği için veriyi FormData ile gönderiyoruz[cite: 1]
       const formData = new FormData();
-      formData.append('username', username); // Buraya email veya kullanıcı adı girilebilir[cite: 1]
+      formData.append('username', username);
       formData.append('password', password);
 
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
           method: 'POST',
           body: formData,
-          // KRİTİK: Çerezlerin (Refresh Token) kabul edilmesi ve gönderilmesi için şart
           credentials: 'include', 
         });
 
         if (response.ok) {
           const data = await response.json();
-          // Access token'ı saklıyoruz[cite: 1]
           localStorage.setItem('token', data.access_token);
           
-          // Kullanıcının ilgi alanları var mı kontrol etmek için profile gidiyoruz
           const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
             headers: { 'Authorization': `Bearer ${data.access_token}` }
           });
           const userData = await userResponse.json();
 
-          // Eğer ilgi alanı seçmemişse onboarding'e, seçmişse ana sayfaya[cite: 5]
           if (userData.interests && userData.interests.length > 0) {
             navigate('/home');
           } else {
             navigate('/onboarding');
           }
         } else {
-          alert("Giriş başarısız! Bilgilerini kontrol et.");
+          showToast("Giriş başarısız! Bilgilerini kontrol et.", "error");
         }
       } catch (error) {
-        console.error("Login hatası:", error);
+        showToast("Sunucuya bağlanılamadı.", "error");
       }
-
     } else {
-      // --- REGISTER İŞLEMİ ---
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
           method: 'POST',
@@ -60,64 +67,120 @@ function Auth() {
         });
 
         if (response.ok) {
-          alert("Kayıt başarılı! Şimdi giriş yapabilirsin.");
+          showToast("Kayıt başarılı! Şimdi giriş yapabilirsin.", "success");
           setIsLogin(true);
         } else {
           const errorData = await response.json();
-          alert(errorData.detail || "Kayıt sırasında bir hata oluştu.");
+          showToast(errorData.detail || "Kayıt sırasında bir hata oluştu.", "error");
         }
       } catch (error) {
-        console.error("Kayıt hatası:", error);
+        showToast("Bağlantı hatası yaşandı.", "error");
       }
     }
   };
 
+  // Senin çok beğendiğin o başarılı tasarım objeleri
+  const styles = {
+    container: {
+      display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
+      backgroundColor: '#020617',
+      backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(129, 140, 248, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(167, 139, 250, 0.1) 0%, transparent 50%)',
+      fontFamily: "'Inter', sans-serif",
+    },
+    glassCard: {
+      background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)', padding: '3rem',
+      borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      width: '420px', textAlign: 'center',
+    },
+    input: {
+      width: '100%', padding: '14px 16px', borderRadius: '12px',
+      border: '1px solid rgba(255, 255, 255, 0.1)', backgroundColor: 'rgba(2, 6, 23, 0.5)',
+      color: 'white', fontSize: '1rem', outline: 'none', transition: 'all 0.3s ease',
+    },
+    button: {
+      width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+      background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+      color: 'white', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
+      marginTop: '1rem', boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)',
+      transition: 'transform 0.2s',
+    },
+    toast: {
+      position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
+      backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+      color: toast.type === 'success' ? '#10b981' : '#ef4444',
+      border: `1px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`,
+      backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px',
+      display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600',
+      boxShadow: '0 20px 40px rgba(0,0,0,0.4)', zIndex: 9999,
+      transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0,
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1e1e2f' }}>
-      <div style={{ backgroundColor: '#2a2a40', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', width: '400px', color: 'white' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>{isLogin ? 'Hoş Geldiniz' : 'Hesap Oluştur'}</h2>
+    <div style={styles.container}>
+      <div style={styles.toast}>
+        <span>{toast.type === 'success' ? '✨' : '⚠️'}</span>
+        {toast.message}
+      </div>
+
+      <div style={styles.glassCard}>
+        <div style={{ marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: '700', color: 'white', margin: 0 }}>
+            {isLogin ? 'Hoş Geldiniz' : 'Aramıza Katıl'}
+          </h2>
+          <p style={{ color: '#94a3b8', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+            {isLogin ? 'En güncel haberler seni bekliyor.' : 'Kişisel haber akışını oluşturmaya başla.'}
+          </p>
+        </div>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <input
-            type="text"
-            placeholder={isLogin ? "E-posta veya Kullanıcı Adı" : "Kullanıcı Adı"}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
-          />
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+          <div style={{ textAlign: 'left' }}>
+            <label style={{ color: '#cbd5e1', fontSize: '0.85rem', marginLeft: '4px', marginBottom: '6px', display: 'block' }}>Kullanıcı Adı</label>
+            <input
+              type="text"
+              placeholder={isLogin ? "Kullanıcı adın" : "Yeni kullanıcı adın"}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              style={styles.input}
+            />
+          </div>
           
           {!isLogin && (
-            <input
-              type="email"
-              placeholder="E-posta"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
-            />
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ color: '#cbd5e1', fontSize: '0.85rem', marginLeft: '4px', marginBottom: '6px', display: 'block' }}>E-posta Adresi</label>
+              <input
+                type="email"
+                placeholder="ornek@mail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={styles.input}
+              />
+            </div>
           )}
           
-          <input
-            type="password"
-            placeholder="Şifre"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#333', color: 'white' }}
-          />
+          <div style={{ textAlign: 'left' }}>
+            <label style={{ color: '#cbd5e1', fontSize: '0.85rem', marginLeft: '4px', marginBottom: '6px', display: 'block' }}>Şifre</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={styles.input}
+            />
+          </div>
           
-          <button type="submit" style={{ padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: '#646cff', color: 'white', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
+          <button type="submit" style={styles.button}>
             {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: '#aaa', fontSize: '0.9rem' }}>
+        <p style={{ textAlign: 'center', marginTop: '2rem', color: '#94a3b8', fontSize: '0.9rem' }}>
           {isLogin ? 'Hesabın yok mu?' : 'Zaten üye misin?'} 
-          <span 
-            onClick={() => setIsLogin(!isLogin)} 
-            style={{ color: '#646cff', cursor: 'pointer', marginLeft: '5px', fontWeight: 'bold' }}
-          >
+          <span onClick={() => setIsLogin(!isLogin)} style={{ color: '#818cf8', cursor: 'pointer', marginLeft: '8px', fontWeight: 'bold' }}>
             {isLogin ? 'Kayıt Ol' : 'Giriş Yap'}
           </span>
         </p>

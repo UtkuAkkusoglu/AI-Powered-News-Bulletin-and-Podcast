@@ -4,114 +4,111 @@ import { useNavigate } from 'react-router-dom';
 function Onboarding() {
   const [categories, setCategories] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const navigate = useNavigate();
 
-  // Sayfa açıldığında kategorileri backend'den çek[cite: 4]
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/categories/`);
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(data);
-        } else {
-          setMessage('Kategoriler yüklenemedi.');
-        }
-      } catch (error) {
-        setMessage('Sunucuya bağlanılamadı. Docker açık mı?');
-      }
-    };
-    fetchCategories();
+    fetch(`${import.meta.env.VITE_API_URL}/categories/`)
+      .then(res => res.json()).then(data => setCategories(data))
+      .catch(() => showToast("Kategoriler yüklenemedi.", "error"));
   }, []);
 
-  // Kategori seçme/çıkarma mantığı
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
   const toggleCategory = (id) => {
     if (selectedIds.includes(id)) {
-      // Eğer zaten seçiliyse listeden çıkar
       setSelectedIds(selectedIds.filter(itemId => itemId !== id));
     } else {
-      // Seçili değilse listeye ekle
       setSelectedIds([...selectedIds, id]);
     }
   };
 
-  // Seçimleri backend'e gönder ve Home'a geç
-  const handleSubmit = async () => {
-    const token = localStorage.getItem('token');
+  const handleFinish = async () => {
+    if (selectedIds.length < 3) {
+      showToast("Devam etmek için en az 3 kategori seçmelisin!", "error");
+      return;
+    }
     
+    setIsSubmitting(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/users/interests`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Güvenlik biletimizi gösteriyoruz[cite: 7]
-        },
-        body: JSON.stringify({ category_ids: selectedIds }) // Şemaya uygun gönderiyoruz[cite: 2]
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ category_ids: selectedIds }), 
       });
 
-      if (response.ok) {
-        navigate('/home'); // Başarılıysa ana akışa yönlendir
-      } else {
-        const data = await response.json();
-        setMessage('Hata: ' + data.detail);
-      }
+      if (response.ok) navigate('/home');
+      else showToast("Ayarların kaydedilemedi.", "error");
     } catch (error) {
-      setMessage('Bağlantı hatası yaşandı.');
+      showToast("Bağlantı hatası yaşandı.", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // En az 2 seçim kuralı: 2'den azsa buton disabled olacak[cite: 7]
-  const isButtonDisabled = selectedIds.length < 2;
+  const styles = {
+    container: {
+      display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+      minHeight: '100vh', backgroundColor: '#020617', fontFamily: "'Inter', sans-serif",
+      backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%)',
+    },
+    toast: {
+      position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
+      backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+      color: toast.type === 'success' ? '#10b981' : '#ef4444',
+      border: `1px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`,
+      backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px',
+      display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600',
+      transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0, zIndex: 9999,
+    },
+    chip: (isSelected) => ({
+      padding: '12px 24px', margin: '6px', borderRadius: '16px', cursor: 'pointer',
+      border: '1px solid', boxSizing: 'border-box', // Kaymayı önleyen kural
+      borderColor: isSelected ? '#818cf8' : 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(15, 23, 42, 0.4)',
+      color: isSelected ? '#fff' : '#94a3b8',
+      fontWeight: '500', transition: 'all 0.2s ease',
+    })
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', backgroundColor: '#1e1e2f', color: 'white', padding: '3rem 1rem', fontFamily: 'sans-serif' }}>
-      <h2 style={{ marginBottom: '0.5rem' }}>Nelerle İlgileniyorsun?</h2>
-      <p style={{ color: '#aaa', marginBottom: '2rem' }}>Sana özel bir haber akışı sunabilmemiz için en az 2 kategori seçmelisin.</p>
-      
-      {/* Kategorileri Dinamik Olarak Listeleme */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', maxWidth: '600px', marginBottom: '2rem' }}>
-        {categories.map((cat) => {
-          const isSelected = selectedIds.includes(cat.id);
-          return (
-            <button
-              key={cat.id}
-              onClick={() => toggleCategory(cat.id)}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '20px',
-                border: isSelected ? '2px solid #646cff' : '1px solid #444',
-                backgroundColor: isSelected ? '#646cff33' : '#2a2a40',
-                color: isSelected ? '#646cff' : '#fff',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontWeight: isSelected ? 'bold' : 'normal'
-              }}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
+    <div style={styles.container}>
+      <div style={styles.toast}>
+        <span>{toast.type === 'success' ? '✨' : '⚠️'}</span>
+        {toast.message}
       </div>
 
-      <button 
-        onClick={handleSubmit} 
-        disabled={isButtonDisabled}
-        style={{ 
-          padding: '12px 30px', 
-          backgroundColor: isButtonDisabled ? '#555' : '#4caf50', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '8px', 
-          cursor: isButtonDisabled ? 'not-allowed' : 'pointer', 
-          fontWeight: 'bold',
-          fontSize: '1.1rem'
-        }}
-      >
-        Akışımı Hazırla
-      </button>
+      <div style={{ background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(20px)', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '3rem', width: '90%', maxWidth: '700px', textAlign: 'center' }}>
+        <h1 style={{ color: 'white', marginBottom: '1rem', fontSize: '2.5rem', fontWeight: '800' }}>Seni Neler Heyecanlandırır?</h1>
+        <p style={{ color: '#94a3b8', marginBottom: '2.5rem', fontSize: '1.1rem' }}>En az 3 ilgi alanı seçerek dünyanı oluştur.</p>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {categories.map(cat => (
+            <div key={cat.id} onClick={() => toggleCategory(cat.id)} style={styles.chip(selectedIds.includes(cat.id))}>
+              {cat.name}
+            </div>
+          ))}
+        </div>
 
-      {message && <p style={{ marginTop: '1rem', color: '#ff5252' }}>{message}</p>}
+        <button onClick={handleFinish} disabled={isSubmitting} style={{
+          marginTop: '3rem', padding: '16px 48px', borderRadius: '14px', border: 'none',
+          background: selectedIds.length < 3 ? '#1e293b' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+          color: selectedIds.length < 3 ? '#64748b' : 'white', cursor: 'pointer', fontWeight: '700', transition: 'all 0.3s'
+        }}>
+          {isSubmitting ? 'Hazırlanıyor...' : 'Dünyamı Oluştur'}
+        </button>
+      </div>
     </div>
   );
 }

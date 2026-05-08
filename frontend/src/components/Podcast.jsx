@@ -11,6 +11,18 @@ function Podcast() {
   const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
 
+  // --- MODERN BİLDİRİM SİSTEMİ (TOAST) ---
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   useEffect(() => {
@@ -27,13 +39,12 @@ function Podcast() {
         setTotalCount(data.total_count || 0);
       }
     } catch (error) {
-      console.error("Podcastler çekilemedi:", error);
+      showToast("Kütüphane yüklenirken hata oluştu.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- YENİ: SİLME FONKSİYONU ---
   const handleDeletePodcast = async (id) => {
     if (!window.confirm("Bu podcast'i kalıcı olarak silmek istediğine emin misin?")) return;
 
@@ -43,15 +54,14 @@ function Podcast() {
       });
 
       if (response.ok) {
-        // Silme başarılıysa listeyi yerel olarak güncelle (Tekrar API'ye gitmeden)
         setPodcasts(prev => prev.filter(p => p.id !== id));
         setTotalCount(prev => prev - 1);
-        alert("Podcast başarıyla silindi.");
+        showToast("Podcast kütüphaneden kaldırıldı.", "success");
       } else {
-        alert("Silme işlemi sırasında bir hata oluştu.");
+        showToast("Silme işlemi başarısız.", "error");
       }
     } catch (error) {
-      console.error("Silme hatası:", error);
+      showToast("Bağlantı hatası.", "error");
     }
   };
 
@@ -60,144 +70,127 @@ function Podcast() {
     setPage(1);
   };
 
+  // --- MODERN TASARIM STİLLERİ ---
+  const styles = {
+    container: { backgroundColor: '#020617', color: '#f1f5f9', minHeight: '100vh', fontFamily: "'Inter', sans-serif", overflowX: 'hidden' },
+    toast: {
+      position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
+      backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+      color: toast.type === 'success' ? '#10b981' : '#ef4444', border: `1px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`,
+      backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px', fontWeight: '600',
+      transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0, zIndex: 9999,
+    },
+    headerWrapper: { padding: '4rem 3rem 3rem', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' },
+    card: {
+      background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px',
+      padding: '2rem', position: 'relative', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      display: 'flex', flexDirection: 'column', gap: '15px'
+    },
+    pageNum: (isActive) => ({
+      padding: '8px 16px', borderRadius: '12px', border: 'none',
+      backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: 'all 0.3s'
+    })
+  };
+
   return (
-    <div style={{ backgroundColor: '#1e1e2f', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <Navbar /> 
-      
-      <div style={{ padding: '2rem' }}>
+    <div style={styles.container}>
+      <Navbar />
+      <div style={styles.toast}>
+        <span style={{marginRight: '8px'}}>{toast.type === 'success' ? '✨' : '⚠️'}</span> {toast.message}
+      </div>
+
+      <div style={styles.headerWrapper}>
         <button 
           onClick={() => navigate('/home')} 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', color: '#aaa', border: 'none', cursor: 'pointer', fontSize: '1rem', marginBottom: '15px', padding: '0' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)', cursor: 'pointer', fontSize: '0.9rem', marginBottom: '25px', padding: '8px 16px', borderRadius: '12px', fontWeight: '600', transition: 'all 0.2s' }}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)'}
+          onMouseOut={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
         >
-          <span style={{ fontSize: '1.2rem' }}>⬅</span> Ana Sayfaya Dön
+          ← Akışa Dön
         </button>
 
-        <h2 style={{ borderBottom: '2px solid #444', paddingBottom: '10px', textAlign: 'center' }}>
-          Kişisel Podcast Kütüphanem
-        </h2>
-        
+        {/* DÜZELTİLMİŞ BAŞLIK */}
+        <h1 style={{ 
+          fontSize: '3rem', 
+          fontWeight: '800', 
+          margin: 0, 
+          letterSpacing: '-1px', // Çarpılmayı önlemek için -1px'e çekildi
+          background: 'linear-gradient(to right, #ffffff, #cbd5e1)', 
+          WebkitBackgroundClip: 'text', 
+          WebkitTextFillColor: 'transparent',
+          lineHeight: '1.2'
+        }}>
+          Podcast Kütüphanem
+        </h1>
+        <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginTop: '10px' }}>Yapay zeka ile üretilen kişisel ses dosyaların.</p>
+      </div>
+
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 3rem' }}>
         {loading ? (
-          <p style={{ textAlign: 'center', marginTop: '2rem' }}>Kasetler sarılıyor...</p>
+          <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '4rem', fontSize: '1.2rem' }}>Kasetler sarılıyor...</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1000px', marginTop: '20px', margin: '0 auto' }}>
-            
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {podcasts.length === 0 ? (
-              <p style={{ color: '#aaa', textAlign: 'center', marginTop: '4rem' }}>Henüz podcast bulunmuyor.</p>
+              <div style={{ textAlign: 'center', padding: '5rem', background: 'rgba(15, 23, 42, 0.3)', borderRadius: '32px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                <p style={{ color: '#64748b', fontSize: '1.2rem' }}>Henüz bir podcast üretilmemiş.</p>
+              </div>
             ) : (
               podcasts.map((pod) => (
-                <div key={pod.id} style={{ 
-                  backgroundColor: '#2a2a40', 
-                  padding: '1.5rem', 
-                  borderRadius: '10px', 
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  position: 'relative' // Butonu konumlandırmak için
-                }}>
-                  {/* SİLME BUTONU */}
+                <div 
+                  key={pod.id} 
+                  style={styles.card}
+                  onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.01)'; e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.3)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.3)'; }}
+                  onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
                   <button
                     onClick={() => handleDeletePodcast(pod.id)}
-                    title="Podcast'i Sil"
-                    style={{
-                      position: 'absolute',
-                      top: '15px',
-                      right: '15px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#ff5252',
-                      cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      padding: '5px',
-                      transition: 'transform 0.2s'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    style={{ position: 'absolute', top: '25px', right: '25px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '10px', borderRadius: '12px', transition: 'all 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                   >
                     🗑️
                   </button>
 
-                  <h3 style={{ margin: '0 30px 15px 0', color: '#646cff' }}>{pod.title}</h3>
-                  <audio controls style={{ width: '100%', marginBottom: '10px' }}>
-                    <source src={pod.audio_url} type="audio/mpeg" />
-                  </audio>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#aaa' }}>
-                    Üretim Tarihi: {new Date(pod.created_at).toLocaleString('tr-TR')}
-                  </p>
+                  <div style={{ paddingRight: '50px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Dosyası</span>
+                    <h3 style={{ margin: '8px 0', fontSize: '1.5rem', color: 'white' }}>{pod.title}</h3>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>Oluşturulma: {new Date(pod.created_at).toLocaleString('tr-TR')}</p>
+                  </div>
+
+                  <div style={{ marginTop: '10px', background: 'rgba(2, 6, 23, 0.4)', padding: '15px', borderRadius: '16px' }}>
+                    {/* YETKİLİ İNDİRME KALDIRILDI: DOĞRUDAN URL KULLANILIYOR */}
+                    <audio controls style={{ width: '100%', filter: 'invert(10%) hue-rotate(180deg)' }}>
+                      <source src={pod.audio_url} type="audio/mpeg" />
+                    </audio>
+                  </div>
                 </div>
               ))
             )}
 
-            {/* --- SAYFALAMA ALANI --- */}
+            {/* --- SAYFALAMA ALANI (ALT BOŞLUK FİKS EDİLDİ) --- */}
             {podcasts.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', flexWrap: 'wrap', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
-                <div style={{ color: '#aaa', fontSize: '0.9rem' }}>
-                  Toplam {totalCount} podcast — Sayfa {page} / {totalPages}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: '#aaa', fontSize: '0.9rem' }}>Sayfa başı:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '2rem' }}>
+                <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Toplam {totalCount} podcast — Sayfa {page}/{totalPages}</div>
+                
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b', fontSize: '0.9rem', marginRight: '10px' }}>Sayfa Başı:</span>
                   {[10, 25, 50].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => handlePageSizeChange(size)}
-                      style={{ 
-                        padding: '5px 12px', borderRadius: '5px', border: 'none', 
-                        backgroundColor: pageSize === size ? '#646cff' : '#333', 
-                        color: 'white', cursor: 'pointer', fontWeight: pageSize === size ? 'bold' : 'normal' 
-                      }}
-                    >
-                      {size}
-                    </button>
+                    <button key={size} onClick={() => handlePageSizeChange(size)} style={styles.pageNum(pageSize === size)}>{size}</button>
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === 1 ? '#222' : '#444', color: page === 1 ? '#666' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-                  > ← </button>
-
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ ...styles.pageNum(false), opacity: page === 1 ? 0.3 : 1 }}>←</button>
                   {(() => {
-                    const buttons = [];
-                    const delta = 2;
-                    const left = Math.max(2, page - delta);
-                    const right = Math.min(totalPages - 1, page + delta);
-
-                    buttons.push(
-                      <button key={1} onClick={() => setPage(1)}
-                        style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === 1 ? '#646cff' : '#333', color: 'white', cursor: 'pointer' }}>
-                        1
-                      </button>
-                    );
-
-                    if (left > 2) buttons.push(<span key="l-dots" style={{ color: '#aaa', padding: '0 4px' }}>...</span>);
-
-                    for (let i = left; i <= right; i++) {
-                      buttons.push(
-                        <button key={i} onClick={() => setPage(i)}
-                          style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === i ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: page === i ? 'bold' : 'normal' }}>
-                          {i}
-                        </button>
-                      );
-                    }
-
-                    if (right < totalPages - 1) buttons.push(<span key="r-dots" style={{ color: '#aaa', padding: '0 4px' }}>...</span>);
-
-                    if (totalPages > 1) {
-                      buttons.push(
-                        <button key={totalPages} onClick={() => setPage(totalPages)}
-                          style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === totalPages ? '#646cff' : '#333', color: 'white', cursor: 'pointer', fontWeight: page === totalPages ? 'bold' : 'normal' }}>
-                          {totalPages}
-                        </button>
-                      );
-                    }
-                    return buttons;
+                    const btns = []; const delta = 2; const left = Math.max(2, page - delta); const right = Math.min(totalPages - 1, page + delta);
+                    btns.push(<button key={1} onClick={() => setPage(1)} style={styles.pageNum(page === 1)}>1</button>);
+                    if (left > 2) btns.push(<span key="l" style={{color: '#444'}}>...</span>);
+                    for (let i = left; i <= right; i++) btns.push(<button key={i} onClick={() => setPage(i)} style={styles.pageNum(page === i)}>{i}</button>);
+                    if (right < totalPages - 1) btns.push(<span key="r" style={{color: '#444'}}>...</span>);
+                    if (totalPages > 1) btns.push(<button key={totalPages} onClick={() => setPage(totalPages)} style={styles.pageNum(page === totalPages)}>{totalPages}</button>);
+                    return btns;
                   })()}
-
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    style={{ padding: '6px 12px', borderRadius: '5px', border: 'none', backgroundColor: page === totalPages ? '#222' : '#444', color: page === totalPages ? '#666' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-                  > → </button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ ...styles.pageNum(false), opacity: page === totalPages ? 0.3 : 1 }}>→</button>
                 </div>
               </div>
             )}
