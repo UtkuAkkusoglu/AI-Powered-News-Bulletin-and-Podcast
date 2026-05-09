@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str
     CELERY_BROKER_URL: str
     GCP_PROJECT_ID: str
+    GCP_BUCKET_NAME: str
+    GCP_LOCATION: str
 
     # Pydantic'e .env dosyasını nasıl okuyacağını söylüyoruz
     model_config = SettingsConfigDict(

@@ -44,7 +44,7 @@ def _genai_client() -> genai.Client:
     return genai.Client(
         vertexai=True,
         project=settings.GCP_PROJECT_ID,
-        location="us-central1",
+        location=settings.GCP_LOCATION,
     )
 
 def get_embedding(text: str, task_type: str = "retrieval_document") -> list[float]:
@@ -62,7 +62,7 @@ def get_signed_audio_url(gcs_url: str, expiration_minutes: int = 60) -> str:
     from google.oauth2 import service_account
     from datetime import timedelta
 
-    bucket_name = "news-and-podcast-storage"
+    bucket_name = settings.GCP_BUCKET_NAME
     blob_name = gcs_url.split(f"{bucket_name}/")[-1]
 
     credentials = service_account.Credentials.from_service_account_file(
@@ -81,7 +81,7 @@ def get_signed_audio_url(gcs_url: str, expiration_minutes: int = 60) -> str:
 
 def upload_to_gcs(file_path: str, destination_blob_name: str):
     """Cihan bu fonksiyonu kullanarak .mp3 dosyalarını GCS'ye yükleyecek."""
-    bucket_name = "news-and-podcast-storage" 
+    bucket_name = settings.GCP_BUCKET_NAME 
     storage_client = storage.Client()  # kod çalıştığında GOOGLE_APPLICATION_CREDENTIALS ortam değişkeninden otomatik olarak kimlik bilgilerini alır
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)

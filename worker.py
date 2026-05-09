@@ -37,7 +37,7 @@ def process_news_and_tts_task(news_id: int, user_id: int):
         ai_client = genai.Client(
             vertexai=True,
             project=settings.GCP_PROJECT_ID,
-            location="us-central1",
+            location=settings.GCP_LOCATION,
         )
         prompt = (
             "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "

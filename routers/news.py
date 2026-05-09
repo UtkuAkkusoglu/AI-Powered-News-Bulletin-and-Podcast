@@ -33,21 +33,41 @@ def get_news(
 
     if search:
         try:
-            # Embedding'i olan haberler arasında cosine similarity ile semantic search
+            # 1. Query vektörünü alıyoruz (Vertex AI). Embedding'i olan haberler arasında cosine similarity ile semantic search
             query_vector = get_embedding(search, task_type="retrieval_query")
+
+            # 2. Vektör sorgusunu hazırlıyoruz
+            # .all() DEĞİL, sadece sorgu tanımını yapıyoruz
             vector_query = (
                 query
                 .filter(models.News.embedding.isnot(None))
                 .order_by(models.News.embedding.cosine_distance(query_vector))
             )
-            all_results = vector_query.all()
-            total_count = len(all_results)
-            items = all_results[(page - 1) * size : page * size]
-        except Exception:
-            # Vertex AI erişimi yoksa title search'e düş
+            
+            # 3. TOPLAM SAYI: Veritabanına sadece kaç tane olduğunu soruyoruz (Ağır veri çekmiyoruz)
+            total_count = vector_query.count()
+            
+            # 4. PAGINATION: Sadece ihtiyacımız olan miktarda haberi çekiyoruz
+            # Limit ve Offset doğrudan SQL'e dönüşür.
+            items = (
+                vector_query
+                .offset((page - 1) * size)
+                .limit(size)
+                .all()
+            )
+            
+        except Exception as e:
+            logger.error(f"Semantic Search hatası: {e}")
+            # Vertex AI patlarsa klasik LIKE aramasına düşüyoruz
             query = query.filter(models.News.title.contains(search))
             total_count = query.count()
-            items = query.order_by(models.News.published_at.desc().nullslast(), models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
+            items = (
+                query
+                .order_by(models.News.created_at.desc())
+                .offset((page - 1) * size)
+                .limit(size)
+                .all()
+            )
     else:
         total_count = query.count()
         items = query.order_by(models.News.published_at.desc().nullslast(), models.News.created_at.desc()).offset((page - 1) * size).limit(size).all()
