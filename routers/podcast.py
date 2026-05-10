@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from typing_extensions import List, Annotated
 import schemas, models
 from dependencies import db_dependency, user_dependency
-from utils import upload_to_gcs, get_signed_audio_url
+from utils import upload_to_gcs, get_signed_audio_url, delete_from_gcs
 from worker import process_news_and_tts_task
 
 router = APIRouter(
@@ -114,3 +114,31 @@ def create_podcast(podcast: schemas.PodcastCreate, db: db_dependency, current_us
     db.commit()
     db.refresh(new_podcast)
     return new_podcast
+
+@router.delete("/{podcast_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_podcast(podcast_id: int, db: db_dependency, current_user: user_dependency):
+    # 1. Kaydı bul
+    podcast = db.query(models.Podcast).filter(
+        models.Podcast.id == podcast_id,
+        models.Podcast.user_id == current_user.id
+    ).first()
+
+    if not podcast:
+        raise HTTPException(status_code=404, detail="Podcast bulunamadı.")
+
+    # URL'i değişkene al (DB'den silinince kaybolmasın)
+    audio_url_to_delete = podcast.audio_url
+
+    try:
+        # 2. Veritabanından sil
+        db.delete(podcast)
+        db.commit()
+        
+        # 3. GCS'den dosyayı uçur
+        delete_from_gcs(audio_url_to_delete)
+        
+        return None
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Silme işlemi başarısız.")

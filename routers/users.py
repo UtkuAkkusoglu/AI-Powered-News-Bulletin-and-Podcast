@@ -62,3 +62,36 @@ def delete_user(current_user: user_dependency, db: db_dependency):
     db.delete(current_user)
     db.commit()
     return None # 204 No Content olduğu için bir şey dönmemize gerek yok
+
+@router.put("/change-password")
+def change_password(
+    data: schemas.UserPasswordChange, 
+    db: db_dependency, 
+    current_user: user_dependency
+):
+    """
+    ### BURAK (Frontend):
+    - Mevcut şifreyi, yeni şifreyi ve yeni şifre onayını alır.
+    - Kullanıcı giriş yapmış olmalıdır (Header'da Token şart).
+    """
+    
+    # 1. Mevcut şifre doğru mu kontrol et (Güvenlik için şart!)
+    import utils
+    if not utils.verify_password(data.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Mevcut şifreniz hatalı."
+        )
+
+    # 2. Yeni şifre eskisiyle aynı mı? (Opsiyonel ama iyi bir UX)
+    if data.old_password == data.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Yeni şifre eskisinden farklı olmalıdır."
+        )
+
+    # 3. Şifreyi hashle ve kaydet
+    current_user.hashed_password = utils.hash_password(data.new_password)
+    db.commit()
+
+    return {"message": "Şifreniz başarıyla güncellendi!"}

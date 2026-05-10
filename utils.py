@@ -91,3 +91,31 @@ def upload_to_gcs(file_path: str, destination_blob_name: str):
     
     # Burak frontend tarafında doğrudan erişebilsin diye public URL'i dönüyoruz
     return f"https://storage.googleapis.com/{bucket_name}/{destination_blob_name}"
+
+def delete_from_gcs(audio_url: str):
+    """
+    Veritabanındaki tam URL'den dosya yolunu ayıklar ve GCS'den siler.
+    Örn: https://storage.googleapis.com/bucket-adi/podcasts/dosya.mp3 
+    -> 'podcasts/dosya.mp3' kısmını siler.
+    """
+    try:
+        bucket_name = settings.GCP_BUCKET_NAME
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+
+        # URL'den blob ismini (path) çekiyoruz
+        # URL yapısı: https://storage.googleapis.com/{bucket_name}/{blob_name}
+        prefix = f"https://storage.googleapis.com/{bucket_name}/"
+        blob_name = audio_url.replace(prefix, "")
+
+        blob = bucket.blob(blob_name)
+        
+        if blob.exists():
+            blob.delete()
+            print(f"[GCS] Dosya başarıyla silindi: {blob_name}")
+        else:
+            print(f"[GCS] Silinecek dosya bulunamadı: {blob_name}")
+            
+    except Exception as e:
+        # Dosya silinemese bile DB'den silme işlemi devam etsin diye sadece log basıyoruz
+        print(f"[GCS ERROR] Dosya silinirken hata oluştu: {e}")

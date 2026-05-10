@@ -135,3 +135,7 @@ class SuggestionOut(BaseModel):
     category_id: int
     category_name: str
     message: str # "Örnek: Teknoloji kategorisine çok sık bakıyorsun, ilgini çekebilir!"
+
+class UserPasswordChange(BaseModel):
+    old_password: str
+    new_password: str
