@@ -233,3 +233,5 @@ ilerleme.md
 cihan.md
 
 frontend/node_modules/
+
+.scraper_seen_urls.json

@@ -27,8 +27,9 @@ COPY . .
 # appuser sadece kendi uygulama klasörüne (/app) yazma ve okuma yetkisine sahiptir.
 # Sistem dosyalarına dokunamaz, yeni paket yükleyemez, ağ ayarlarını değiştiremez.
 # Saldırgan sızsa bile, o kullanıcının yetkileriyle hapsolur.
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
+# .scraper_seen_urls.json dosyasını yazabilmesi için appuser'a izin veriyoruz.
+RUN adduser --disabled-password --gecos "" appuser && \
+    chown -R appuser:appuser /app
 
 # 8. GCP Cloud Run için standart port 8080'dir
 EXPOSE 8080

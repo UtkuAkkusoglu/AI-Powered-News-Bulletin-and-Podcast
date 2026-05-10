@@ -24,9 +24,11 @@ services:
   worker:
     build: .
     container_name: news-and-podcast-worker
-    command: celery -A worker.celery_app worker --loglevel=info
+    command: celery -A worker.celery_app worker --loglevel=info --concurrency=1  # 1 tane worker çalıştır, böylece scraper'ın eşzamanlı çalışması engellenir
     env_file: 
       - .env
+    volumes:
+      - .:/app  # Kodları ve scraper hafızasını bilgisayarla senkronize eder
     depends_on:
       - redis
 

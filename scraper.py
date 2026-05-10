@@ -18,6 +18,7 @@ from pathlib import Path
 import feedparser
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy.exc import IntegrityError
 
 # ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -29,14 +30,19 @@ SEEN_URLS_FILE = Path(__file__).parent / ".scraper_seen_urls.json"
 RSS_SOURCES = [
     {"url": "https://www.ntv.com.tr/teknoloji.rss",    "category_name": "Teknoloji"},
     {"url": "https://www.ntv.com.tr/ekonomi.rss",      "category_name": "Ekonomi"},
-    {"url": "https://www.ntv.com.tr/spor.rss",         "category_name": "Spor"},
-    {"url": "https://www.ntv.com.tr/turkiye.rss",      "category_name": "Türkiye"},
-    {"url": "https://www.ntv.com.tr/dunya.rss",        "category_name": "Dünya"},
-    {"url": "https://www.ntv.com.tr/saglik.rss",       "category_name": "Sağlık"},
-    {"url": "https://www.ntv.com.tr/bilim.rss",        "category_name": "Bilim"},
-    {"url": "https://www.hurriyet.com.tr/rss/magazin", "category_name": "Magazin"},
-    {"url": "https://www.hurriyet.com.tr/rss/ekonomi", "category_name": "Ekonomi"},
     {"url": "https://www.hurriyet.com.tr/rss/spor",    "category_name": "Spor"},
+    {"url": "https://www.aa.com.tr/tr/rss/default?cat=politika", "category_name": "Siyaset"},
+    {"url": "https://www.ntv.com.tr/saglik.rss",       "category_name": "Sağlık"},
+    {"url": "https://www.cumhuriyet.com.tr/rss/kultur-sanat", "category_name": "Kültür-Sanat"},
+    {"url": "https://www.trthaber.com/bilim_teknoloji_articles.rss", "category_name": "Bilim"},
+    {"url": "https://www.ntv.com.tr/otomobil.rss",    "category_name": "Otomobil"},
+    {"url": "https://shiftdelete.net/oyun/feed",       "category_name": "Oyun"},
+    {"url": "https://www.hurriyet.com.tr/rss/magazin", "category_name": "Magazin"},
+    {"url": "https://www.ntv.com.tr/egitim.rss",       "category_name": "Eğitim"},
+    {"url": "https://www.ntv.com.tr/dunya.rss",        "category_name": "Dünya"},
+    {"url": "https://www.ntv.com.tr/turkiye.rss",      "category_name": "Türkiye"},
+    {"url": "https://www.lezzet.com.tr/rss",           "category_name": "Gastronomi"},
+    {"url": "https://www.ntv.com.tr/yasam.rss",        "category_name": "Diğer"},
 ]
 
 # İçerik çıkarmak için denenen CSS seçiciler (öncelik sırasıyla)
@@ -60,6 +66,8 @@ HEADERS = {
 
 MIN_CONTENT_LENGTH = 200  # Daha kısa içerikler atlanır
 REQUEST_DELAY = 0.5        # Saniye — rate limiting
+
+is_currently_scraping = False
 
 # ─── Yardımcı Fonksiyonlar ────────────────────────────────────────────────────
 
@@ -171,6 +179,15 @@ def scrape_to_db(limit: int = 0) -> dict:
     from database import SessionLocal
     import models
 
+    global is_currently_scraping
+    
+    # Eğer zaten çalışıyorsa, yeni bir tane başlatma, hata dön
+    if is_currently_scraping:
+        print("[!] Scraper zaten çalışıyor, yeni işlem reddedildi.")  # Eşzamanlı olarak 1'den fazla worker çalışırsa böyle yazmak sorunu çözmüyor o yüzden compose dosyasına bunu yazdık: celery -A tasks worker --loglevel=info --concurrency=1
+        return {"status": "already_running", "message": "Tarama devam ediyor."}
+
+    is_currently_scraping = True # Kilidi kapat
+
     db = SessionLocal()
     try:
         categories = db.query(models.NewsCategory).all()
@@ -220,6 +237,9 @@ def scrape_to_db(limit: int = 0) -> dict:
                 if not content:
                     print("    İçerik çıkarılamadı, atlanıyor.")
                     skipped_content += 1
+                    # --- CHECKPOINT: Bozuk linki de hafızaya hemen işle ---
+                    save_seen_urls(seen_urls) 
+                    # ---------------------------------------------------
                     continue
 
                 news = models.News(
@@ -230,13 +250,24 @@ def scrape_to_db(limit: int = 0) -> dict:
                     image_url=extract_image(entry),
                     published_at=extract_published_at(entry),
                 )
-                db.add(news)
-                uploaded += 1
-                print(f"    ✓ Yüklendi [{uploaded}/{limit or '∞'}]")
-                time.sleep(REQUEST_DELAY)
 
-        db.commit()
-        save_seen_urls(seen_urls)
+                # --- KRİTİK NOKTA: HER ADIMDA KAYDET (CHECKPOINT) --- Mükerrer URL'leri önlemek ve ilerlemeyi kaybetmemek için her haber eklendikten sonra commit yapıyoruz.
+                try:
+                    db.add(news)
+                    db.commit() # Haberi Frankfurt'a kalıcı olarak yaz
+                    uploaded += 1
+                    print(f"    ✓ Yüklendi [{uploaded}/{limit or '∞'}]")
+                except IntegrityError:
+                    db.rollback() # Bu kayıt için işlemi geri al
+                    skipped_dup += 1
+                    print(f"    [!] Bu haber zaten veritabanında var, atlanıyor.")
+                except Exception as inner_e:
+                    db.rollback()
+                    print(f"    [!] Beklenmedik kayıt hatası: {inner_e}")
+                
+                # Hafızayı her halükarda güncelle
+                save_seen_urls(seen_urls) 
+                time.sleep(REQUEST_DELAY)
 
         print("\n─── Scraper Tamamlandı ──────────────────────")
         print(f"  Yüklenen : {uploaded}")
@@ -249,8 +280,9 @@ def scrape_to_db(limit: int = 0) -> dict:
         print(f"[!] Hata: {e}")
         raise
     finally:
+        is_currently_scraping = False    # hata verse de vermese de kiidi açmamız lazım
         db.close()
-
+        print("[System] Kilit açıldı, yeni isteklere hazır.")
 
 def main():
     parser = argparse.ArgumentParser(description="AI News Bulletin — Haber Scraper")

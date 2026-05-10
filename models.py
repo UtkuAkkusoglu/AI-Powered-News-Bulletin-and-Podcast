@@ -48,7 +48,7 @@ class News(Base):
     content = Column(Text, nullable=False)
     summary = Column(Text) # AI tarafından özetlenmiş hali
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
-    source_url = Column(String)
+    source_url = Column(String, unique=True, index=True, nullable=True)
     image_url = Column(String)
     published_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
