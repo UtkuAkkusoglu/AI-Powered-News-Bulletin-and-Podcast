@@ -34,8 +34,9 @@ function Onboarding() {
   };
 
   const handleFinish = async () => {
-    if (selectedIds.length < 3) {
-      showToast("Devam etmek için en az 3 kategori seçmelisin!", "error");
+    // BACKEND GÜNCELLEMESİ: Minimum sınır 2'ye çekildi
+    if (selectedIds.length < 2) {
+      showToast("Devam etmek için en az 2 kategori seçmelisin!", "error");
       return;
     }
     
@@ -74,7 +75,7 @@ function Onboarding() {
     },
     chip: (isSelected) => ({
       padding: '12px 24px', margin: '6px', borderRadius: '16px', cursor: 'pointer',
-      border: '1px solid', boxSizing: 'border-box', // Kaymayı önleyen kural
+      border: '1px solid', boxSizing: 'border-box',
       borderColor: isSelected ? '#818cf8' : 'rgba(255, 255, 255, 0.1)',
       backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(15, 23, 42, 0.4)',
       color: isSelected ? '#fff' : '#94a3b8',
@@ -91,7 +92,8 @@ function Onboarding() {
 
       <div style={{ background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(20px)', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '3rem', width: '90%', maxWidth: '700px', textAlign: 'center' }}>
         <h1 style={{ color: 'white', marginBottom: '1rem', fontSize: '2.5rem', fontWeight: '800' }}>Seni Neler Heyecanlandırır?</h1>
-        <p style={{ color: '#94a3b8', marginBottom: '2.5rem', fontSize: '1.1rem' }}>En az 3 ilgi alanı seçerek dünyanı oluştur.</p>
+        {/* BACKEND GÜNCELLEMESİ: Metin 2 olarak düzeltildi */}
+        <p style={{ color: '#94a3b8', marginBottom: '2.5rem', fontSize: '1.1rem' }}>En az 2 ilgi alanı seçerek dünyanı oluştur.</p>
         
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
           {categories.map(cat => (
@@ -101,10 +103,13 @@ function Onboarding() {
           ))}
         </div>
 
-        <button onClick={handleFinish} disabled={isSubmitting} style={{
+        {/* BACKEND GÜNCELLEMESİ: Buton mantığı 2'ye göre ayarlandı */}
+        <button onClick={handleFinish} disabled={isSubmitting || selectedIds.length < 2} style={{
           marginTop: '3rem', padding: '16px 48px', borderRadius: '14px', border: 'none',
-          background: selectedIds.length < 3 ? '#1e293b' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-          color: selectedIds.length < 3 ? '#64748b' : 'white', cursor: 'pointer', fontWeight: '700', transition: 'all 0.3s'
+          background: selectedIds.length < 2 ? '#1e293b' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+          color: selectedIds.length < 2 ? '#64748b' : 'white', 
+          cursor: selectedIds.length < 2 ? 'not-allowed' : 'pointer', 
+          fontWeight: '700', transition: 'all 0.3s'
         }}>
           {isSubmitting ? 'Hazırlanıyor...' : 'Dünyamı Oluştur'}
         </button>
