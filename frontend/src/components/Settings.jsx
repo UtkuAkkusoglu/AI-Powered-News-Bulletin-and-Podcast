@@ -18,6 +18,9 @@ function Settings() {
     confirm_password: ''
   });
 
+  // --- HESAP SİLME STATE'İ (YENİ EKLENDİ) ---
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -36,7 +39,6 @@ function Settings() {
 
   const fetchInitialData = async () => {
     try {
-      // 1. Kullanıcı bilgilerini ve mevcut ilgi alanlarını çek
       const userRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
       if (userRes.ok) {
         const userData = await userRes.json();
@@ -45,7 +47,6 @@ function Settings() {
         setSelectedInterests(userData.interests.map(i => i.id));
       }
 
-      // 2. Tüm kategorileri çek
       const catRes = await fetch(`${import.meta.env.VITE_API_URL}/categories/`);
       if (catRes.ok) {
         const catData = await catRes.json();
@@ -56,7 +57,6 @@ function Settings() {
     }
   };
 
-  // Şifre Güncelleme
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (passwordData.new_password !== passwordData.confirm_password) {
@@ -74,7 +74,7 @@ function Settings() {
         })
       });
       if (res.ok) {
-        showToast("Şifreniz güncellendi.", "success");
+        showToast("Şifreniz başarıyla güncellendi.", "success");
         setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
       } else {
         const err = await res.json();
@@ -84,7 +84,6 @@ function Settings() {
     finally { setIsProcessing(false); }
   };
 
-  // İlgi Alanlarını Güncelleme
   const handleUpdateInterests = async () => {
     if (selectedInterests.length < 2) {
       showToast("En az 2 kategori seçmelisin!", "error");
@@ -106,14 +105,55 @@ function Settings() {
     setSelectedInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
+  // --- HESAP SİLME İŞLEMİ (YENİ EKLENDİ) ---
+  const confirmDeleteAccount = async () => {
+    setIsProcessing(true);
+    const token = localStorage.getItem('token');
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      localStorage.removeItem('token');
+      navigate('/auth');
+    } catch (_) {
+      setIsProcessing(false);
+      setShowDeleteModal(false);
+      showToast("Hesap silinirken bir hata oluştu.", "error");
+    }
+  };
+
   const styles = {
     container: { backgroundColor: '#020617', color: '#f1f5f9', minHeight: '100vh', fontFamily: "'Inter', sans-serif" },
-    main: { maxWidth: '1000px', margin: '0 auto', padding: '4rem 2rem' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' },
-    section: { background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', padding: '2.5rem', backdropFilter: 'blur(10px)' },
-    input: { width: '100%', padding: '12px 16px', borderRadius: '12px', marginBottom: '15px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(2, 6, 23, 0.5)', color: 'white', outline: 'none' },
-    chip: (isSelected) => ({ padding: '8px 16px', margin: '4px', borderRadius: '12px', cursor: 'pointer', border: '1px solid', borderColor: isSelected ? '#818cf8' : 'rgba(255,255,255,0.1)', backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: isSelected ? '#fff' : '#94a3b8', fontSize: '0.85rem', transition: 'all 0.2s' }),
-    toast: { position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: toast.type === 'success' ? '#10b981' : '#ef4444', border: `1px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`, backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px', zIndex: 10000, transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0 }
+    main: { maxWidth: '1100px', margin: '0 auto', padding: '4rem 2rem' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px' },
+    section: { 
+      background: 'rgba(15, 23, 42, 0.6)', 
+      border: '1px solid rgba(255,255,255,0.05)', 
+      borderRadius: '28px', 
+      padding: '3rem', 
+      backdropFilter: 'blur(12px)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      textAlign: 'center'
+    },
+    input: { 
+      width: '100%', maxWidth: '400px', padding: '14px 18px', borderRadius: '14px', marginBottom: '15px', 
+      border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(2, 6, 23, 0.5)', color: 'white', 
+      outline: 'none', transition: 'all 0.3s',
+    },
+    button: { 
+      width: '100%', maxWidth: '400px', padding: '14px', borderRadius: '14px', border: 'none', 
+      background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', 
+      cursor: 'pointer', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.3)', transition: 'all 0.3s'
+    },
+    chip: (isSelected) => ({ padding: '10px 20px', margin: '5px', borderRadius: '14px', cursor: 'pointer', border: '1px solid', borderColor: isSelected ? '#818cf8' : 'rgba(255,255,255,0.1)', backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(15, 23, 42, 0.3)', color: isSelected ? '#fff' : '#94a3b8', fontSize: '0.9rem', transition: 'all 0.2s' }),
+    toast: { position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)', backgroundColor: toast.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: toast.type === 'success' ? '#10b981' : '#ef4444', border: `1px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`, backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px', zIndex: 10000, transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0 },
+    
+    // MODAL STİLLERİ
+    modalOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
+    modalBox: (borderColor) => ({ background: 'rgba(15, 23, 42, 0.95)', border: `1px solid ${borderColor}`, padding: '3rem', borderRadius: '32px', maxWidth: '440px', textAlign: 'center', boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.5)', position: 'relative' })
   };
 
   return (
@@ -122,41 +162,98 @@ function Settings() {
       <div style={styles.toast}><span>{toast.type === 'success' ? '✨' : '⚠️'}</span> {toast.message}</div>
       
       <div style={styles.main}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '2rem', letterSpacing: '-1px' }}>Hesap Ayarları</h1>
+        <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '3rem', letterSpacing: '-1.5px', textAlign: 'left' }}>Ayarlar</h1>
         
         <div style={styles.grid}>
           {/* PROFİL BİLGİSİ */}
-          <div style={{ ...styles.section, gridColumn: 'span 2' }}>
-            <h3 style={{ margin: '0 0 1rem 0' }}>👤 Profil Bilgileri</h3>
-            <div style={{ display: 'flex', gap: '40px' }}>
-              <div><label style={{ color: '#64748b', fontSize: '0.8rem' }}>Kullanıcı Adı</label><p style={{ margin: '5px 0', fontSize: '1.1rem', fontWeight: '600' }}>{username}</p></div>
-              <div><label style={{ color: '#64748b', fontSize: '0.8rem' }}>E-posta</label><p style={{ margin: '5px 0', fontSize: '1.1rem', fontWeight: '600' }}>{email}</p></div>
+          <div style={{ ...styles.section, gridColumn: 'span 2', alignItems: 'flex-start', textAlign: 'left' }}>
+            <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.6rem' }}>👤 Profil Bilgileri</h3>
+            <div style={{ display: 'flex', gap: '60px', width: '100%' }}>
+              <div><label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>Kullanıcı Adı</label><p style={{ margin: '8px 0', fontSize: '1.3rem', fontWeight: '600' }}>{username}</p></div>
+              <div><label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>E-posta Adresi</label><p style={{ margin: '8px 0', fontSize: '1.3rem', fontWeight: '600' }}>{email}</p></div>
             </div>
           </div>
 
           {/* ŞİFRE DEĞİŞTİRME */}
           <div style={styles.section}>
-            <h3 style={{ margin: '0 0 1.5rem 0' }}>🔐 Güvenlik</h3>
-            <form onSubmit={handlePasswordChange}>
+            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.6rem' }}>🔐 Güvenlik</h3>
+            <form onSubmit={handlePasswordChange} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <input type="password" placeholder="Mevcut Şifre" required style={styles.input} value={passwordData.old_password} onChange={e => setPasswordData({...passwordData, old_password: e.target.value})} />
               <input type="password" placeholder="Yeni Şifre" required style={styles.input} value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} />
               <input type="password" placeholder="Yeni Şifre (Tekrar)" required style={styles.input} value={passwordData.confirm_password} onChange={e => setPasswordData({...passwordData, confirm_password: e.target.value})} />
-              <button type="submit" disabled={isProcessing} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>Güncelle</button>
+              <button type="submit" disabled={isProcessing} style={styles.button}>
+                {isProcessing ? 'İşleniyor...' : 'Şifreyi Güncelle'}
+              </button>
             </form>
           </div>
 
           {/* İLGİ ALANLARI */}
           <div style={styles.section}>
-            <h3 style={{ margin: '0 0 1.5rem 0' }}>🎯 Haber Tercihleri</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.6rem' }}>🎯 Haber Tercihleri</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
               {allCategories.map(cat => (
                 <div key={cat.id} onClick={() => toggleCategory(cat.id)} style={styles.chip(selectedInterests.includes(cat.id))}>{cat.name}</div>
               ))}
             </div>
-            <button onClick={handleUpdateInterests} disabled={isProcessing || selectedInterests.length < 2} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #818cf8', background: 'transparent', color: '#818cf8', fontWeight: 'bold', cursor: 'pointer' }}>Tercihleri Kaydet</button>
+            <button 
+              onClick={handleUpdateInterests} 
+              disabled={isProcessing || selectedInterests.length < 2} 
+              style={{ ...styles.button, background: 'transparent', border: '2px solid #6366f1', color: '#818cf8', boxShadow: 'none' }}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
+              onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+            >
+              Kategorileri Kaydet
+            </button>
+          </div>
+
+          {/* YENİ: TEHLİKE BÖLGESİ (HESAP SİLME) */}
+          <div style={{ ...styles.section, gridColumn: 'span 2', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)', alignItems: 'center' }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.6rem', color: '#ef4444' }}>⚠️ Tehlike Bölgesi</h3>
+            <p style={{ color: '#94a3b8', marginBottom: '2rem', maxWidth: '600px', fontSize: '1.05rem', lineHeight: '1.6' }}>
+              Hesabını sildiğinde haber akışın, podcastlerin ve tüm verilerin <strong>kalıcı olarak</strong> silinecektir. Bu işlem geri alınamaz.
+            </p>
+            <button 
+              onClick={() => setShowDeleteModal(true)} 
+              style={{ padding: '14px 32px', borderRadius: '14px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+              onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+            >
+              Hesabımı Kalıcı Olarak Sil
+            </button>
           </div>
         </div>
       </div>
+
+      {/* --- HESAP SİLME ONAY MODALI --- */}
+      {showDeleteModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox('rgba(239, 68, 68, 0.3)')}>
+            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⚠️</div>
+            <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Veda Mı Ediyoruz?</h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+              Hesabını sildiğinde tüm verilerin <strong>kalıcı olarak</strong> silinecek. Bu işlem geri alınamaz. Emin misin?
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                disabled={isProcessing} 
+                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              >
+                Vazgeç
+              </button>
+              <button 
+                onClick={confirmDeleteAccount} 
+                disabled={isProcessing} 
+                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer', boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.4)' }}
+              >
+                {isProcessing ? 'Siliniyor...' : 'Evet, Hesabımı Sil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
