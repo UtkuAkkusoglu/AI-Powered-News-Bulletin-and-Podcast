@@ -23,6 +23,10 @@ function Podcast() {
     }
   }, [toast.show]);
 
+  // --- YENİ: MODERN SİLME ONAY MODALI STATE'LERİ ---
+  const [podcastToDelete, setPodcastToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   useEffect(() => {
@@ -45,23 +49,33 @@ function Podcast() {
     }
   };
 
-  const handleDeletePodcast = async (id) => {
-    if (!window.confirm("Bu podcast'i kalıcı olarak silmek istediğine emin misin?")) return;
+  // Sadece modalı açar ve silinecek podcast'in ID'sini kaydeder
+  const handleDeleteClick = (id) => {
+    setPodcastToDelete(id);
+  };
 
+  // Gerçek silme işlemini yapan fonksiyon
+  const confirmDeletePodcast = async () => {
+    if (!podcastToDelete) return;
+    
+    setIsDeleting(true);
     try {
-      const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/${id}`, {
+      const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/${podcastToDelete}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        setPodcasts(prev => prev.filter(p => p.id !== id));
+        setPodcasts(prev => prev.filter(p => p.id !== podcastToDelete));
         setTotalCount(prev => prev - 1);
-        showToast("Podcast kütüphaneden kaldırıldı.", "success");
+        showToast("Podcast kütüphaneden başarıyla kaldırıldı.", "success");
       } else {
-        showToast("Silme işlemi başarısız.", "error");
+        showToast("Silme işlemi başarısız oldu.", "error");
       }
     } catch (error) {
-      showToast("Bağlantı hatası.", "error");
+      showToast("Bağlantı hatası yaşandı.", "error");
+    } finally {
+      setIsDeleting(false);
+      setPodcastToDelete(null); // Modalı kapat
     }
   };
 
@@ -89,7 +103,18 @@ function Podcast() {
     pageNum: (isActive) => ({
       padding: '8px 16px', borderRadius: '12px', border: 'none',
       backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: 'all 0.3s'
-    })
+    }),
+    // Yeni Modal Stilleri
+    modalOverlay: {
+      position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)',
+      backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center',
+      alignItems: 'center', zIndex: 9999
+    },
+    modalBox: {
+      background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.3)',
+      padding: '3rem', borderRadius: '32px', maxWidth: '440px', textAlign: 'center',
+      boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.5)', position: 'relative'
+    }
   };
 
   return (
@@ -109,12 +134,11 @@ function Podcast() {
           ← Akışa Dön
         </button>
 
-        {/* DÜZELTİLMİŞ BAŞLIK */}
         <h1 style={{ 
           fontSize: '3rem', 
           fontWeight: '800', 
           margin: 0, 
-          letterSpacing: '-1px', // Çarpılmayı önlemek için -1px'e çekildi
+          letterSpacing: '-1px', 
           background: 'linear-gradient(to right, #ffffff, #cbd5e1)', 
           WebkitBackgroundClip: 'text', 
           WebkitTextFillColor: 'transparent',
@@ -143,7 +167,7 @@ function Podcast() {
                   onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   <button
-                    onClick={() => handleDeletePodcast(pod.id)}
+                    onClick={() => handleDeleteClick(pod.id)} // window.confirm yerine kendi modalımızı açıyoruz
                     style={{ position: 'absolute', top: '25px', right: '25px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '10px', borderRadius: '12px', transition: 'all 0.2s' }}
                     onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
                     onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
@@ -158,7 +182,6 @@ function Podcast() {
                   </div>
 
                   <div style={{ marginTop: '10px', background: 'rgba(2, 6, 23, 0.4)', padding: '15px', borderRadius: '16px' }}>
-                    {/* YETKİLİ İNDİRME KALDIRILDI: DOĞRUDAN URL KULLANILIYOR */}
                     <audio controls style={{ width: '100%', filter: 'invert(10%) hue-rotate(180deg)' }}>
                       <source src={pod.audio_url} type="audio/mpeg" />
                     </audio>
@@ -167,7 +190,7 @@ function Podcast() {
               ))
             )}
 
-            {/* --- SAYFALAMA ALANI (ALT BOŞLUK FİKS EDİLDİ) --- */}
+            {/* --- SAYFALAMA ALANI --- */}
             {podcasts.length > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '2rem' }}>
                 <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Toplam {totalCount} podcast — Sayfa {page}/{totalPages}</div>
@@ -197,6 +220,39 @@ function Podcast() {
           </div>
         )}
       </div>
+
+      {/* --- YENİ: SİLME ONAY MODALI --- */}
+      {podcastToDelete && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+            <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Kaseti Çöpe At?</h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+              Bu kaydı kütüphaneden <strong>kalıcı olarak</strong> silmek üzeresin. Bu işlem geri alınamaz.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setPodcastToDelete(null)} 
+                disabled={isDeleting} 
+                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              >
+                Vazgeç
+              </button>
+              <button 
+                onClick={confirmDeletePodcast} 
+                disabled={isDeleting} 
+                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: isDeleting ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.4)' }}
+                onMouseOver={e => { if(!isDeleting) e.currentTarget.style.background = '#dc2626' }}
+                onMouseOut={e => { if(!isDeleting) e.currentTarget.style.background = '#ef4444' }}
+              >
+                {isDeleting ? 'Siliniyor...' : 'Evet, Çöpe At'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
