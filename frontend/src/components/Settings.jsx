@@ -193,14 +193,24 @@ function Settings() {
                 <div key={cat.id} onClick={() => toggleCategory(cat.id)} style={styles.chip(selectedInterests.includes(cat.id))}>{cat.name}</div>
               ))}
             </div>
+            
+            {/* 🔥 GÖRSEL OLARAK DA DEVRE DIŞI KALAN YENİ BUTON */}
             <button 
               onClick={handleUpdateInterests} 
               disabled={isProcessing || selectedInterests.length < 2} 
-              style={{ ...styles.button, background: 'transparent', border: '2px solid #6366f1', color: '#818cf8', boxShadow: 'none' }}
-              onMouseOver={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
-              onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              style={{ 
+                ...styles.button, 
+                background: 'transparent', 
+                border: selectedInterests.length < 2 ? '2px solid rgba(255,255,255,0.1)' : '2px solid #6366f1', 
+                color: selectedInterests.length < 2 ? '#64748b' : '#818cf8', 
+                cursor: selectedInterests.length < 2 ? 'not-allowed' : 'pointer',
+                boxShadow: 'none',
+                transition: 'all 0.3s'
+              }}
+              onMouseOver={e => { if(selectedInterests.length >= 2 && !isProcessing) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)' }}
+              onMouseOut={e => { if(selectedInterests.length >= 2 && !isProcessing) e.currentTarget.style.background = 'transparent' }}
             >
-              Kategorileri Kaydet
+              {isProcessing ? 'Kaydediliyor...' : 'Kategorileri Kaydet'}
             </button>
           </div>
 
