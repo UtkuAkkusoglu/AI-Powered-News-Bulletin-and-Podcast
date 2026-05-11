@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from './Navbar';
 import { fetchWithAuth } from '../Utils/api';
 
 function Settings() {
@@ -158,7 +157,6 @@ function Settings() {
 
   return (
     <div style={styles.container}>
-      <Navbar />
       <div style={styles.toast}><span>{toast.type === 'success' ? '✨' : '⚠️'}</span> {toast.message}</div>
       
       <div style={styles.main}>

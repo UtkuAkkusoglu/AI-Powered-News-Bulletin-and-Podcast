@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from './Navbar';
 import { fetchWithAuth } from '../Utils/api';
 
 function Podcast() {
@@ -119,7 +118,6 @@ function Podcast() {
 
   return (
     <div style={styles.container}>
-      <Navbar />
       <div style={styles.toast}>
         <span style={{marginRight: '8px'}}>{toast.type === 'success' ? '✨' : '⚠️'}</span> {toast.message}
       </div>
