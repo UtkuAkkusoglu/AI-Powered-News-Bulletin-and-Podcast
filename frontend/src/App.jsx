@@ -17,16 +17,17 @@ function App() {
         
         <Route path="*" element={
           <div style={{ 
-            backgroundColor: '#020617', minHeight: '100vh', width: '100vw', 
-            position: 'absolute', top: 0, left: 0, margin: 0, padding: 0, 
-            display: 'flex', overflowX: 'hidden' 
+            backgroundColor: '#020617', minHeight: '100vh', width: '100%', 
+            position: 'relative', top: 0, left: 0, margin: 0, padding: 0, 
+            display: 'flex', overflowX: 'auto' 
           }}>
             <Sidebar /> 
             
             <div style={{ 
               marginLeft: sidebarWidth, 
-              width: `calc(100vw - ${sidebarWidth})`, 
-              display: 'flex', flexDirection: 'column', minHeight: '100vh' 
+              flex: 1,
+              display: 'flex', flexDirection: 'column', minHeight: '100vh' ,
+              minWidth: 0 // Flexbox taşmalarını engellemek için kritik
             }}>
               {/* NAVBAR BURADAN TAMAMEN SİLİNDİ */}
               <main style={{ flex: 1 }}>

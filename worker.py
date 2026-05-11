@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from celery import Celery
 from config import settings
 from utils import upload_to_gcs, get_embedding
@@ -5,7 +8,6 @@ from google import genai
 from google.cloud import texttospeech
 from database import SessionLocal
 import models
-import os
 import time
 
 CELERY_BROKER_URL = settings.CELERY_BROKER_URL
@@ -20,7 +22,7 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
-@celery_app.task(name="process_news_and_tts")
+@celery_app.task(name="process_news_and_tts", queue="ai_queue")
 def process_news_and_tts_task(news_id: int, user_id: int):
     db = SessionLocal()
     tmp_path = f"/tmp/news_{news_id}.mp3"
@@ -118,7 +120,7 @@ def process_news_and_tts_task(news_id: int, user_id: int):
             os.remove(tmp_path)
 
 
-@celery_app.task(name="run_scraper")
+@celery_app.task(name="run_scraper", queue="scraper_queue")
 def run_scraper_task():
     import sys
     if "/app" not in sys.path:

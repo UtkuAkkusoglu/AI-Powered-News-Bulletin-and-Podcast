@@ -161,28 +161,38 @@ function Podcast() {
                 <div 
                   key={pod.id} 
                   style={styles.card}
-                  onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.01)'; e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.3)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.3)'; }}
-                  onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)'; }}
+                  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; }}
                 >
+                  {/* Silme Butonu */}
                   <button
-                    onClick={() => handleDeleteClick(pod.id)} // window.confirm yerine kendi modalımızı açıyoruz
-                    style={{ position: 'absolute', top: '25px', right: '25px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '10px', borderRadius: '12px', transition: 'all 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                    onClick={() => handleDeleteClick(pod.id)}
+                    style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px', borderRadius: '10px', zIndex: 10 }}
                   >
                     🗑️
                   </button>
 
-                  <div style={{ paddingRight: '50px' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Dosyası</span>
-                    <h3 style={{ margin: '8px 0', fontSize: '1.5rem', color: 'white' }}>{pod.title}</h3>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>Oluşturulma: {new Date(pod.created_at).toLocaleString('tr-TR')}</p>
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {/* İkon - Home'daki ile aynı tarz */}
+                    <div style={{ 
+                      width: '50px', height: '50px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
+                      borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0
+                    }}>
+                      🎙️
+                    </div>
 
-                  <div style={{ marginTop: '10px', background: 'rgba(2, 6, 23, 0.4)', padding: '15px', borderRadius: '16px' }}>
-                    <audio controls style={{ width: '100%', filter: 'invert(10%) hue-rotate(180deg)' }}>
-                      <source src={pod.audio_url} type="audio/mpeg" />
-                    </audio>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Arşivi</span>
+                      <h3 style={{ margin: '4px 0', fontSize: '1.3rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pod.title}</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{new Date(pod.created_at).toLocaleString('tr-TR')}</p>
+                    </div>
+
+                    {/* Modern Audio Player */}
+                    <audio 
+                      controls 
+                      src={pod.audio_url} 
+                      style={{ height: '30px', width: '220px', filter: 'invert(100%) brightness(1.5)' }} 
+                    />
                   </div>
                 </div>
               ))

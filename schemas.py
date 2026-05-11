@@ -58,7 +58,7 @@ class UserInterestsUpdate(BaseModel):
 class NewsBase(BaseModel):
     title: str
     category_id: int
-    source_url: Optional[str] = None
+    source_url: str = Field(..., description="Haberin orijinal linki zorunludur")
     image_url: Optional[str] = None
     summary: Optional[str] = None
     published_at: Optional[datetime] = None

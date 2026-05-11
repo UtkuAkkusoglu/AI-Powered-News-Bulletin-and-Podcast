@@ -137,9 +137,17 @@ function Home() {
           setPodcastStatus('ready');
           stopPolling();
           showToast("Podcast hazır!", "success");
+          
+          // 🔥 OTOMATİK OYNATMA GARANTİSİ:
+          // Kısa bir delay ile audio elementinin render olmasını bekleyip play diyoruz
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.play().catch(e => console.log("Oynatma engellendi:", e));
+            }
+          }, 500);
         }
       } catch (_) {}
-    }, 3000); // 3 saniyede bir backend'e "Hazır mı?" diye sorar
+    }, 3000);
   };
 
   const handleNewsClick = async (newsId) => {
@@ -196,9 +204,10 @@ function Home() {
       color: '#f1f5f9', 
       fontFamily: "'Inter', sans-serif", 
       width: '100%', 
-      maxWidth: '1400px', 
+      maxWidth: '1200px', 
       margin: '0 auto',   
-      padding: '0 2rem' 
+      padding: '0 2rem',
+      boxSizing: 'border-box' // Padding'in genişliğe dahil olmasını sağlar 
     },
     toast: {
       position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
@@ -209,7 +218,7 @@ function Home() {
     },
     bentoGrid: { 
       display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', 
+      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
       gap: '28px', 
       marginBottom: '4rem',
       width: '100%'
@@ -224,8 +233,10 @@ function Home() {
     }),
     floatingPlayer: {
       position: 'fixed', bottom: '30px', left: 'calc(50% + 140px)', transform: 'translateX(-50%)',
-      width: '650px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 2rem', zIndex: 2000, display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+      width: '90%', maxWidth: '520px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 2rem', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', 
+      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Giriş efekti
+      pointerEvents: 'auto' // Tıklamaları yakalaması için zorunlu
     }
   };
 
@@ -285,12 +296,49 @@ function Home() {
 
       {podcastId && podcastStatus === 'ready' && (
         <div style={styles.floatingPlayer}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: 'white', fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedNews?.title || "Podcast Oynatılıyor"}</div>
-            <div style={{ color: '#818cf8', fontSize: '0.7rem' }}>SESLİ ÖZET ÇALIYOR</div>
+          {/* İkon Kısmı */}
+          <div style={{ 
+            width: '45px', height: '45px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
+            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' 
+          }}>
+            🎙️
           </div>
-          <audio ref={audioRef} autoPlay controls src={`${import.meta.env.VITE_API_URL}/podcast/${podcastId}/audio?t=${Date.now()}`} style={{ height: '35px', filter: 'invert(10%) hue-rotate(180deg)' }} />
-          <button onClick={() => setPodcastId(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '1.2rem', cursor: 'pointer' }}>✖</button>
+
+          {/* Metin Kısmı */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ 
+              color: 'white', fontSize: '0.85rem', fontWeight: '700', 
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+            }}>
+              {selectedNews?.title || "Sesli Özet"}
+            </div>
+            <div style={{ color: '#818cf8', fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px' }}>
+              AI PODCAST CANLI
+            </div>
+          </div>
+
+          {/* Player Kısmı */}
+          <audio 
+            ref={audioRef} 
+            controls 
+            key={podcastId} 
+            src={`${import.meta.env.VITE_API_URL}/podcast/${podcastId}/audio?t=${Date.now()}`} 
+            onCanPlay={(e) => e.target.play().catch(() => {})} // Hazır olduğu an oynatmayı dene
+            style={{ height: '32px', width: '200px', filter: 'invert(100%) hue-rotate(180deg) brightness(1.5)', position: 'relative', zIndex: 10000, cursor: 'pointer'}} 
+          />
+
+          {/* Kapat Butonu */}
+          <button 
+            onClick={() => setPodcastId(null)} 
+            style={{ 
+              background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', 
+              width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', transition: '0.2s' 
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          >
+            ✕
+          </button>
         </div>
       )}
 

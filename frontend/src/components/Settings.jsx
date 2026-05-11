@@ -8,7 +8,9 @@ function Settings() {
   const [email, setEmail] = useState('');
   const [allCategories, setAllCategories] = useState([]);
   const [selectedInterests, setSelectedInterests] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
+  const [isInterestsUpdating, setIsInterestsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Şifre State'leri
   const [passwordData, setPasswordData] = useState({
@@ -62,7 +64,7 @@ function Settings() {
       showToast("Yeni şifreler eşleşmiyor!", "error");
       return;
     }
-    setIsProcessing(true);
+    setIsPasswordUpdating(true);
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/change-password`, {
         method: 'PUT',
@@ -80,7 +82,7 @@ function Settings() {
         showToast(err.detail || "Hata oluştu.", "error");
       }
     } catch (_) { showToast("Bağlantı hatası.", "error"); }
-    finally { setIsProcessing(false); }
+    finally { setIsPasswordUpdating(false); }
   };
 
   const handleUpdateInterests = async () => {
@@ -88,7 +90,7 @@ function Settings() {
       showToast("En az 2 kategori seçmelisin!", "error");
       return;
     }
-    setIsProcessing(true);
+    setIsInterestsUpdating(true);
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/interests`, {
         method: 'POST',
@@ -97,7 +99,7 @@ function Settings() {
       if (res.ok) showToast("İlgi alanların güncellendi!", "success");
       else showToast("Güncellenemedi.", "error");
     } catch (_) { showToast("Bağlantı hatası.", "error"); }
-    finally { setIsProcessing(false); }
+    finally { setIsInterestsUpdating(false); }
   };
 
   const toggleCategory = (id) => {
@@ -106,7 +108,7 @@ function Settings() {
 
   // --- HESAP SİLME İŞLEMİ (YENİ EKLENDİ) ---
   const confirmDeleteAccount = async () => {
-    setIsProcessing(true);
+    setIsDeleting(true);
     const token = localStorage.getItem('token');
     try {
       await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
@@ -116,7 +118,7 @@ function Settings() {
       localStorage.removeItem('token');
       navigate('/auth');
     } catch (_) {
-      setIsProcessing(false);
+      setIsDeleting(false);
       setShowDeleteModal(false);
       showToast("Hesap silinirken bir hata oluştu.", "error");
     }
@@ -179,8 +181,8 @@ function Settings() {
               <input type="password" placeholder="Mevcut Şifre" required style={styles.input} value={passwordData.old_password} onChange={e => setPasswordData({...passwordData, old_password: e.target.value})} />
               <input type="password" placeholder="Yeni Şifre" required style={styles.input} value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} />
               <input type="password" placeholder="Yeni Şifre (Tekrar)" required style={styles.input} value={passwordData.confirm_password} onChange={e => setPasswordData({...passwordData, confirm_password: e.target.value})} />
-              <button type="submit" disabled={isProcessing} style={styles.button}>
-                {isProcessing ? 'İşleniyor...' : 'Şifreyi Güncelle'}
+              <button type="submit" disabled={isPasswordUpdating} style={styles.button}>
+                {isPasswordUpdating ? 'İşleniyor...' : 'Şifreyi Güncelle'}
               </button>
             </form>
           </div>
@@ -197,7 +199,7 @@ function Settings() {
             {/* 🔥 GÖRSEL OLARAK DA DEVRE DIŞI KALAN YENİ BUTON */}
             <button 
               onClick={handleUpdateInterests} 
-              disabled={isProcessing || selectedInterests.length < 2} 
+              disabled={isInterestsUpdating || selectedInterests.length < 2} 
               style={{ 
                 ...styles.button, 
                 background: 'transparent', 
@@ -207,10 +209,10 @@ function Settings() {
                 boxShadow: 'none',
                 transition: 'all 0.3s'
               }}
-              onMouseOver={e => { if(selectedInterests.length >= 2 && !isProcessing) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)' }}
-              onMouseOut={e => { if(selectedInterests.length >= 2 && !isProcessing) e.currentTarget.style.background = 'transparent' }}
+              onMouseOver={e => { if(selectedInterests.length >= 2 && !isInterestsUpdating) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)' }}
+              onMouseOut={e => { if(selectedInterests.length >= 2 && !isInterestsUpdating) e.currentTarget.style.background = 'transparent' }}
             >
-              {isProcessing ? 'Kaydediliyor...' : 'Kategorileri Kaydet'}
+              {isInterestsUpdating ? 'Kaydediliyor...' : 'Kategorileri Kaydet'}
             </button>
           </div>
 
@@ -244,7 +246,7 @@ function Settings() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => setShowDeleteModal(false)} 
-                disabled={isProcessing} 
+                disabled={isDeleting} 
                 style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                 onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
@@ -253,10 +255,10 @@ function Settings() {
               </button>
               <button 
                 onClick={confirmDeleteAccount} 
-                disabled={isProcessing} 
-                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer', boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.4)' }}
+                disabled={isDeleting} 
+                style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: isDeleting ? 'not-allowed' : 'pointer', boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.4)' }}
               >
-                {isProcessing ? 'Siliniyor...' : 'Evet, Hesabımı Sil'}
+                {isDeleting ? 'Siliniyor...' : 'Evet, Hesabımı Sil'}
               </button>
             </div>
           </div>

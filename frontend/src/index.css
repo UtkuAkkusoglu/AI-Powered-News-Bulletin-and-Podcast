@@ -1,0 +1,21 @@
+/* index.css */
+
+/* Podcast Player'ın aşağıdan yukarı süzülerek gelmesini sağlayan animasyon */
+@keyframes slideUp {
+  from { 
+    transform: translate(-50%, 50px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translate(-50%, 0); 
+    opacity: 1; 
+  }
+}
+
+/* Sayfa genelinde scrollbar'ın (kaydırma çubuğu) tasarımı bozmaması için temel ayar */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Yanlara taşmayı her ihtimale karşı globalde de engeller */
+  background-color: #020617; /* App ile uyumlu arka plan */
+}

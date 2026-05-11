@@ -20,11 +20,11 @@ services:
     depends_on:
       - redis
 
-  # 3. Celery Worker
-  worker:
+  # 3. Amele Celery Worker: Sadece uzun süren scraper işlerini yapar
+  scraper-worker:
     build: .
-    container_name: news-and-podcast-worker
-    command: celery -A worker.celery_app worker --loglevel=info --concurrency=1  # 1 tane worker çalıştır, böylece scraper'ın eşzamanlı çalışması engellenir
+    container_name: news-and-podcast-scraper-worker
+    command: celery -A worker.celery_app worker --loglevel=info --concurrency=1 -Q scraper_queue # 1 tane worker çalıştır, böylece scraper'ın eşzamanlı çalışması engellenir. 1'den fazla çalışırsa .scraper_seen_urls.json dosyasına aynı url'ler yazılabilir ve bu da scraper'ın verimsiz çalışmasına neden olabilir.
     env_file: 
       - .env
     volumes:
@@ -32,6 +32,17 @@ services:
     depends_on:
       - redis
 
+  # 4. VIP Worker: Podcast isteklerini anında yakalar
+  ai-worker:
+    build: .
+    container_name: news-and-podcast-ai-worker
+    command: celery -A worker.celery_app worker --loglevel=info --concurrency=4 -Q ai_queue
+    env_file: 
+      - .env
+    depends_on:
+      - redis
+
+  # 5. React Frontend
   frontend:
     build: ./frontend
     ports:
