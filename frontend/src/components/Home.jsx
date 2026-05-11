@@ -13,7 +13,6 @@ function Home() {
   const audioRef = useRef(null); 
   const [refreshing, setRefreshing] = useState(false);
   
-  // --- PAGING VE FİLTRE STATE'LERİ ---
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
@@ -63,7 +62,6 @@ function Home() {
       const params = new URLSearchParams({ page: p, size });
       if (query) params.set('search', query);
       if (catId === 0) {
-        // Tümü seçili
       } else if (catId) {
         params.set('category_id', catId);
       } else {
@@ -87,7 +85,6 @@ function Home() {
   const handleCategoryChange = (catId) => { setActiveCategoryId(catId); setPage(1); };
   const handlePageSizeChange = (newSize) => { setPageSize(newSize); setPage(1); };
 
-  // --- CANLI AKIŞ (POLLING) MANTIĞI ---
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true); 
@@ -121,8 +118,32 @@ function Home() {
     }
   };
 
+  // 🔥 YENİDEN EKLENEN POLLING MANTIĞI BURASI
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  const startPolling = (newsId) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPodcastId(data.id);
+          setPodcastStatus('ready');
+          stopPolling();
+          showToast("Podcast hazır!", "success");
+        }
+      } catch (_) {}
+    }, 3000); // 3 saniyede bir backend'e "Hazır mı?" diye sorar
+  };
+
   const handleNewsClick = async (newsId) => {
-    setPodcastStatus('idle'); setPodcastId(null);
+    setPodcastStatus('idle'); setPodcastId(null); stopPolling(); // 🔥 Yeni haber açılınca polling'i durdurur
     try {
       const detailResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`);
       if (detailResponse.ok) {
@@ -144,7 +165,9 @@ function Home() {
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/generate/${selectedNews.id}`, { method: 'POST' });
       if (res.ok) {
-        // Hazır olduğunda polling veya doğrudan çekim yapılabilir
+        startPolling(selectedNews.id); // 🔥 Üretim komutu başarıyla gidince takip etmeye başlar
+      } else {
+        setPodcastStatus('idle');
       }
     } catch (error) { setPodcastStatus('idle'); }
   };
@@ -169,13 +192,12 @@ function Home() {
   };
 
   const styles = {
-    // --- YAYILMAYI DURDURAN VE ORTALAYAN ANA KAPSAYICI ---
     container: { 
       color: '#f1f5f9', 
       fontFamily: "'Inter', sans-serif", 
       width: '100%', 
-      maxWidth: '1400px', // Ekran ne kadar büyürse büyüsün bu sınırı geçmez
-      margin: '0 auto',   // İçeriği bulunduğu alanın tam ortasına hizalar
+      maxWidth: '1400px', 
+      margin: '0 auto',   
       padding: '0 2rem' 
     },
     toast: {
@@ -244,7 +266,6 @@ function Home() {
             ))}
           </div>
 
-          {/* --- PAGING ARAYÜZÜ --- */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', width: '100%' }}>
             <div style={{ color: '#64748b' }}>{totalCount} haber — Sayfa {page}/{totalPages}</div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -262,7 +283,6 @@ function Home() {
         </div>
       )}
 
-      {/* --- YÜZER OYNATICI (FLOATING PLAYER) --- */}
       {podcastId && podcastStatus === 'ready' && (
         <div style={styles.floatingPlayer}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -274,7 +294,6 @@ function Home() {
         </div>
       )}
 
-      {/* --- MODAL DETAY --- */}
       {selectedNews && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(16px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.1)', padding: '4rem', borderRadius: '40px', maxWidth: '900px', width: '90%', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
