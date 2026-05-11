@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import Home from './components/Home';
-import Podcast from './components/Podcast'; // YENİ: Podcast sayfasını içeri aldık
+import Podcast from './components/Podcast';
+import Settings from './components/Settings'; // YENİ: Settings (Ayarlar) sayfasını içeri aldık
 
 function App() {
   return (
@@ -13,8 +14,9 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/home" element={<Home />} />
-          {/* YENİ: Haritaya Podcast rotasını ekledik */}
           <Route path="/podcasts" element={<Podcast />} /> 
+          {/* YENİ: Haritaya Ayarlar (Settings) rotasını ekledik */}
+          <Route path="/settings" element={<Settings />} /> 
         </Routes>
       </BrowserRouter>
     </div>
