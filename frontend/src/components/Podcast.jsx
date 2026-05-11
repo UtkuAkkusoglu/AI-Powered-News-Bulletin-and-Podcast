@@ -225,7 +225,7 @@ function Podcast() {
       {podcastToDelete && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalBox}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⚠️</div>
             <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Kaseti Çöpe At?</h2>
             <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
               Bu kaydı kütüphaneden <strong>kalıcı olarak</strong> silmek üzeresin. Bu işlem geri alınamaz.
