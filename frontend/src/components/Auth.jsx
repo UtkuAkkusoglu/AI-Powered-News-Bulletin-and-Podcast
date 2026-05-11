@@ -82,7 +82,9 @@ function Auth() {
   // Senin çok beğendiğin o başarılı tasarım objeleri
   const styles = {
     container: {
-      display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
+      position: 'absolute', top: 0, left: 0, margin: 0, padding: 0, // Çerçeveyi yok eden sihirli dokunuş
+      width: '100vw', height: '100vh', overflow: 'hidden', // Ekrandan taşmasını engeller
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
       backgroundColor: '#020617',
       backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(129, 140, 248, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(167, 139, 250, 0.1) 0%, transparent 50%)',
       fontFamily: "'Inter', sans-serif",
