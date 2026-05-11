@@ -5,7 +5,7 @@ import { fetchWithAuth } from '../Utils/api';
 function Navbar() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [username, setUsername] = useState(''); // Kullanıcı ismini tutmak için
+  const [username, setUsername] = useState('');
   
   // --- MODAL STATE'LERİ ---
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -19,7 +19,6 @@ function Navbar() {
         const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
         if (res.ok) {
           const data = await res.json();
-          // Backend'den gelen tam adı veya kullanıcı adını alıyoruz
           setUsername(data.full_name || data.username || 'Kullanıcı');
         }
       } catch (_) {}
@@ -124,7 +123,6 @@ function Navbar() {
         </div>
 
         <div style={navStyles.userBadge}>
-          {/* KİŞİSELLEŞTİRİLMİŞ KARŞILAMA BADGE'İ */}
           {username && (
             <span style={navStyles.nameText}>
               👋 Merhaba, <span style={{ color: '#818cf8', fontWeight: '700' }}>{username}</span>
@@ -143,7 +141,6 @@ function Navbar() {
 
             {isMenuOpen && (
               <div style={navStyles.dropdown}>
-                {/* YENİ: AYARLAR SAYFASINA YÖNLENDİRME */}
                 <button 
                   onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} 
                   style={navStyles.dropItem()}
@@ -164,7 +161,7 @@ function Navbar() {
         </div>
       </nav>
 
-      {/* --- MODAL 1: HESAP SİLME (FERAHLATILMIŞ İKON) --- */}
+      {/* --- MODAL 1: HESAP SİLME --- */}
       {showDeleteModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(239, 68, 68, 0.3)')}>
@@ -183,7 +180,7 @@ function Navbar() {
         </div>
       )}
 
-      {/* --- MODAL 2: ÇIKIŞ YAP (FERAHLATILMIŞ İKON) --- */}
+      {/* --- MODAL 2: ÇIKIŞ YAP --- */}
       {showLogoutModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(99, 102, 241, 0.3)')}>
@@ -198,3 +195,11 @@ function Navbar() {
                 {isProcessing ? 'Kapatılıyor...' : 'Çıkış Yap'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default Navbar;
