@@ -5,10 +5,9 @@ import { fetchWithAuth } from '../Utils/api';
 function Navbar() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Kullanıcı ismini tutmak için
   
   // --- MODAL STATE'LERİ ---
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -19,34 +18,13 @@ function Navbar() {
         const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
         if (res.ok) {
           const data = await res.json();
+          // Backend'den gelen tam adı veya kullanıcı adını alıyoruz
           setUsername(data.full_name || data.username || 'Kullanıcı');
         }
       } catch (_) {}
     };
     fetchUserData();
   }, []);
-
-  // --- HESAP SİLME MANTIĞI ---
-  const handleDeleteClick = () => {
-    setShowDeleteModal(true);
-    setIsMenuOpen(false);
-  };
-
-  const confirmDeleteAccount = async () => {
-    setIsProcessing(true);
-    const token = localStorage.getItem('token');
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      localStorage.removeItem('token');
-      navigate('/auth');
-    } catch (_) {
-      setIsProcessing(false);
-      setShowDeleteModal(false);
-    }
-  };
 
   // --- ÇIKIŞ YAPMA MANTIĞI ---
   const handleLogoutClick = () => {
@@ -123,6 +101,7 @@ function Navbar() {
         </div>
 
         <div style={navStyles.userBadge}>
+          {/* KULLANICI KARŞILAMA BADGE'İ */}
           {username && (
             <span style={navStyles.nameText}>
               👋 Merhaba, <span style={{ color: '#818cf8', fontWeight: '700' }}>{username}</span>
@@ -141,6 +120,7 @@ function Navbar() {
 
             {isMenuOpen && (
               <div style={navStyles.dropdown}>
+                {/* AYARLAR SAYFASINA YÖNLENDİRME */}
                 <button 
                   onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} 
                   style={navStyles.dropItem()}
@@ -149,9 +129,7 @@ function Navbar() {
                 >
                   ⚙️ Ayarlar
                 </button>
-                <button onClick={handleDeleteClick} style={navStyles.dropItem('#ef4444')} onMouseOver={e => e.target.style.background='rgba(239, 68, 68, 0.1)'} onMouseOut={e => e.target.style.background='transparent'}>
-                  🗑️ Hesabı Sil
-                </button>
+                {/* Not: 'Hesabı Sil' artık Ayarlar sayfasında daha güvenli bir yerde. */}
                 <button onClick={handleLogoutClick} style={navStyles.dropItem('#fbbf24')} onMouseOver={e => e.target.style.background='rgba(251, 191, 36, 0.1)'} onMouseOut={e => e.target.style.background='transparent'}>
                   🚪 Çıkış Yap
                 </button>
@@ -161,26 +139,7 @@ function Navbar() {
         </div>
       </nav>
 
-      {/* --- MODAL 1: HESAP SİLME --- */}
-      {showDeleteModal && (
-        <div style={navStyles.modalOverlay}>
-          <div style={navStyles.modalBox('rgba(239, 68, 68, 0.3)')}>
-            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⚠️</div>
-            <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Veda Mı Ediyoruz?</h2>
-            <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-              Hesabını sildiğinde tüm verilerin <strong>kalıcı olarak</strong> silinecek. Bu işlem geri alınamaz.
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowDeleteModal(false)} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>Vazgeç</button>
-              <button onClick={confirmDeleteAccount} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
-                {isProcessing ? 'Siliniyor...' : 'Evet, Sil'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 2: ÇIKIŞ YAP --- */}
+      {/* --- ÇIKIŞ YAP MODALI (FERAHLATILMIŞ İKON) --- */}
       {showLogoutModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(99, 102, 241, 0.3)')}>
@@ -190,8 +149,8 @@ function Navbar() {
               Haber akışına kısa bir ara mı veriyorsun? En güncel gelişmelerle seni tekrar bekliyor olacağız.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowLogoutModal(false)} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>Vazgeç</button>
-              <button onClick={confirmLogout} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
+              <button onClick={() => setShowLogoutModal(false)} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>Vazgeç</button>
+              <button onClick={confirmLogout} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.4)' }}>
                 {isProcessing ? 'Kapatılıyor...' : 'Çıkış Yap'}
               </button>
             </div>
