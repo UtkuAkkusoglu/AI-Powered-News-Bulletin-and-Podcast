@@ -3,7 +3,6 @@ import Navbar from './Navbar';
 import { fetchWithAuth } from '../Utils/api';
 
 function Home() {
-  // --- TÜM STATE'LER (KESİNLİKLE DOKUNULMADI) ---
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [suggestion, setSuggestion] = useState(null);
@@ -12,7 +11,7 @@ function Home() {
   const [podcastStatus, setPodcastStatus] = useState('idle');
   const [podcastId, setPodcastId] = useState(null);
   const pollRef = useRef(null);
-  const audioRef = useRef(null); // SES İÇİN YENİ REF
+  const audioRef = useRef(null); 
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -20,7 +19,6 @@ function Home() {
   const [userInterests, setUserInterests] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null); 
 
-  // --- TOAST BİLDİRİM SİSTEMİ ---
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -32,16 +30,14 @@ function Home() {
     }
   }, [toast.show]);
 
-  // --- KRİTİK SES OYNATMA TAKİBİ ---
   useEffect(() => {
     if (podcastId && audioRef.current) {
-      audioRef.current.load(); // ID değiştiği an tarayıcıya "yükle" emri ver
+      audioRef.current.load();
     }
   }, [podcastId]);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  // --- TÜM FONKSİYONLAR (BİR HARF BİLE SİLİNMEDİ) ---
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -82,34 +78,43 @@ function Home() {
   const handleCategoryChange = (catId) => { setActiveCategoryId(catId); setPage(1); };
   const handlePageSizeChange = (newSize) => { setPageSize(newSize); setPage(1); };
 
+  // --- 🔥 YENİ: ASENKRON BLOKLAMAYI ÇÖZEN GERÇEK CANLI AKIŞ ---
   const handleRefresh = async () => {
     if (refreshing) return;
-    setRefreshing(true);
-    showToast("Gündem tazeleniyor...", "success");
+    
+    setRefreshing(true); 
+    setPage(1); 
+    showToast("Gündem tazeleniyor, canlı akış başladı...", "success");
+
+    // 1. ADIM: AWAIT'E TAKILMADAN POLLING'İ HEMEN BAŞLAT
+    const poll = setInterval(async () => {
+      try {
+        const params = new URLSearchParams({ page: 1, size: pageSize });
+        if (searchTerm) params.set('search', searchTerm);
+        if (activeCategoryId === 0) {} 
+        else if (activeCategoryId) params.set('category_id', activeCategoryId);
+        else params.set('interests_only', 'true');
+        
+        const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          // EKRANA CANLI BASIYORUZ
+          setNewsList(data.items);
+          setTotalCount(data.total_count);
+        }
+      } catch (_) {}
+    }, 4000); // 4 saniyede bir taze veriyi kontrol et
+
+    // 2. ADIM: BACKEND KAZIMA İŞLEMİNİ BAŞLAT VE BİTMESİNİ BEKLE
     try {
       await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { method: 'POST' });
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        try {
-          const params = new URLSearchParams({ page: 1, size: pageSize });
-          if (activeCategoryId === 0) {} 
-          else if (activeCategoryId) params.set('category_id', activeCategoryId);
-          else params.set('interests_only', 'true');
-          const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.total_count > totalCount || attempts >= 30) {
-              clearInterval(poll);
-              setPage(1); setNewsList(data.items); setTotalCount(data.total_count); setRefreshing(false);
-              showToast("Yeni haberler eklendi!", "success");
-            }
-          }
-        } catch (_) {}
-      }, 4000);
     } catch (error) {
+      showToast("Yenileme işlemi sırasında hata oluştu.", "error");
+    } finally {
+      // 3. ADIM: BACKEND "BİTİRDİM" DEYİNCE HER ŞEYİ TEMİZLE VE KİLİDİ AÇ
+      clearInterval(poll);
       setRefreshing(false);
-      showToast("Yenileme başarısız.", "error");
+      showToast("Gündem başarıyla güncellendi!", "success");
     }
   };
 
@@ -228,14 +233,23 @@ function Home() {
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'white', outline: 'none', width: '320px', fontSize: '1rem', backdropFilter: 'blur(10px)' }}
           />
-          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-            {refreshing ? '⏳' : '🔄'} Yenile
+          <button 
+            onClick={handleRefresh} 
+            disabled={refreshing} 
+            style={{ 
+              padding: '14px 28px', borderRadius: '16px', border: 'none', 
+              background: refreshing ? 'rgba(99, 102, 241, 0.5)' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', 
+              color: 'white', fontWeight: 'bold', 
+              cursor: refreshing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s'
+            }}
+          >
+            {refreshing ? '⏳ Gündem Tazeleniyor...' : '🔄 Yenile'}
           </button>
         </div>
       </div>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        {/* KATEGORİ SEÇİMİ */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '0 3rem', marginBottom: '3rem' }}>
           {[{ id: null, name: '🎯 İlgi Alanlarım' }, { id: 0, name: '🌐 Tümü' }, ...userInterests].map(cat => (
             <button key={cat.id ?? 'interests'} onClick={() => handleCategoryChange(cat.id)} style={{ padding: '10px 22px', borderRadius: '25px', border: '1px solid', borderColor: activeCategoryId === cat.id ? '#818cf8' : 'rgba(255,255,255,0.1)', backgroundColor: activeCategoryId === cat.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent', color: activeCategoryId === cat.id ? '#fff' : '#94a3b8', cursor: 'pointer', transition: 'all 0.3s' }}>{cat.name}</button>
@@ -280,7 +294,6 @@ function Home() {
         )}
       </div>
 
-      {/* --- MODAL DETAY --- */}
       {selectedNews && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(16px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.1)', padding: '4rem', borderRadius: '40px', maxWidth: '900px', width: '90%', maxHeight: '85vh', overflowY: 'auto', position: 'relative', boxShadow: '0 60px 120px -20px rgba(0,0,0,0.5)' }}>
@@ -294,7 +307,6 @@ function Home() {
             <h2 style={{ fontSize: '2.6rem', fontWeight: '900', color: 'white', marginBottom: '30px', letterSpacing: '-1.5px', lineHeight: '1.2' }}>{selectedNews.title}</h2>
             <div style={{ lineHeight: '1.9', color: '#cbd5e1', fontSize: '1.25rem', whiteSpace: 'pre-wrap', fontWeight: '400' }}>{selectedNews.content}</div>
 
-            {/* --- KRİTİK FİKS: CACHE BUSTER VE REF İLE SES ÇÖZÜMÜ --- */}
             <div style={{ marginTop: '4rem', background: 'rgba(30, 41, 59, 0.5)', padding: '2.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
               {podcastStatus === 'idle' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -307,7 +319,6 @@ function Home() {
               )}
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', animation: 'pulse 2s infinite' }}>🎧 Haber seslendiriliyor...</p>}
               
-              {/* Sadece podcastId gerçekten varsa render et */}
               {podcastStatus === 'ready' && podcastId && (
                 <div style={{ textAlign: 'center' }}>
                   <h4 style={{ margin: '0 0 15px 0', color: '#10b981' }}>✅ Sesli Özet Hazır</h4>
@@ -328,7 +339,6 @@ function Home() {
         </div>
       )}
 
-      {/* ÖNERİ KARTI */}
       {suggestion && (
         <div style={{ position: 'fixed', bottom: '40px', right: '40px', background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(16px)', border: '1px solid #10b981', padding: '24px', borderRadius: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.4)', maxWidth: '380px', zIndex: 1001 }}>
           <h4 style={{ margin: '0 0 12px 0', color: '#10b981', fontSize: '1.2rem', fontWeight: '700' }}>İlgi Alanı Önerisi 🎯</h4>
