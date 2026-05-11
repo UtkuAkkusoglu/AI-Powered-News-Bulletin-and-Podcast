@@ -162,7 +162,7 @@ function Navbar() {
       {showDeleteModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(239, 68, 68, 0.3)')}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⚠️</div>
             <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Veda Mı Ediyoruz?</h2>
             <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
               Hesabını sildiğinde tüm verilerin <strong>kalıcı olarak</strong> silinecek. Bu işlem geri alınamaz.
