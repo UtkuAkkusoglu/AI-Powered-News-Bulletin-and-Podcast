@@ -19,7 +19,7 @@ function Navbar() {
         const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/users/me`);
         if (res.ok) {
           const data = await res.json();
-          // Eğer tam ad varsa onu, yoksa kullanıcı adını alıyoruz
+          // Backend'den gelen tam adı veya kullanıcı adını alıyoruz
           setUsername(data.full_name || data.username || 'Kullanıcı');
         }
       } catch (_) {}
@@ -124,7 +124,7 @@ function Navbar() {
         </div>
 
         <div style={navStyles.userBadge}>
-          {/* YENİ: KULLANICI İSMİ */}
+          {/* KİŞİSELLEŞTİRİLMİŞ KARŞILAMA BADGE'İ */}
           {username && (
             <span style={navStyles.nameText}>
               👋 Merhaba, <span style={{ color: '#818cf8', fontWeight: '700' }}>{username}</span>
@@ -143,7 +143,13 @@ function Navbar() {
 
             {isMenuOpen && (
               <div style={navStyles.dropdown}>
-                <button style={navStyles.dropItem()} onMouseOver={e => e.target.style.background='#334155'} onMouseOut={e => e.target.style.background='transparent'}>
+                {/* YENİ: AYARLAR SAYFASINA YÖNLENDİRME */}
+                <button 
+                  onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} 
+                  style={navStyles.dropItem()}
+                  onMouseOver={e => e.target.style.background='#334155'}
+                  onMouseOut={e => e.target.style.background='transparent'}
+                >
                   ⚙️ Ayarlar
                 </button>
                 <button onClick={handleDeleteClick} style={navStyles.dropItem('#ef4444')} onMouseOver={e => e.target.style.background='rgba(239, 68, 68, 0.1)'} onMouseOut={e => e.target.style.background='transparent'}>
@@ -158,7 +164,7 @@ function Navbar() {
         </div>
       </nav>
 
-      {/* --- MODAL 1: HESAP SİLME --- */}
+      {/* --- MODAL 1: HESAP SİLME (FERAHLATILMIŞ İKON) --- */}
       {showDeleteModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(239, 68, 68, 0.3)')}>
@@ -177,26 +183,18 @@ function Navbar() {
         </div>
       )}
 
-      {/* --- MODAL 2: ÇIKIŞ YAP --- */}
+      {/* --- MODAL 2: ÇIKIŞ YAP (FERAHLATILMIŞ İKON) --- */}
       {showLogoutModal && (
         <div style={navStyles.modalOverlay}>
           <div style={navStyles.modalBox('rgba(99, 102, 241, 0.3)')}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👋</div>
+            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>👋</div>
             <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '10px', fontWeight: '800' }}>Oturumu Kapat?</h2>
             <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
               Haber akışına kısa bir ara mı veriyorsun? En güncel gelişmelerle seni tekrar bekliyor olacağız.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowLogoutModal(false)} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>Vazgeç</button>
+              <button onClick={() => setShowLogoutModal(false)} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>Vazgeç</button>
               <button onClick={confirmLogout} disabled={isProcessing} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
                 {isProcessing ? 'Kapatılıyor...' : 'Çıkış Yap'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-export default Navbar;
