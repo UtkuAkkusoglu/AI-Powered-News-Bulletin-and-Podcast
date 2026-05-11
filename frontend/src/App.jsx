@@ -8,6 +8,8 @@ import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 
 function App() {
+  const sidebarWidth = '280px'; 
+
   return (
     <BrowserRouter>
       <Routes>
@@ -15,14 +17,34 @@ function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         
         <Route path="*" element={
-          <div style={{ display: 'flex', backgroundColor: '#020617', minHeight: '100vh', width: '100%' }}>
-            {/* SABİT GENİŞLİKLİ SIDEBAR */}
-            <Sidebar style={{ width: '260px' }} /> 
+          // 🔥 VITE'IN KISITLAMALARINI KIRAN ANA KAPSAYICI
+          // position: 'absolute', top: 0, left: 0 ve width: '100vw' ile tüm kısıtlamaları eziyoruz.
+          <div style={{ 
+            backgroundColor: '#020617', 
+            minHeight: '100vh', 
+            width: '100vw', 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            margin: 0, 
+            padding: 0,
+            display: 'flex',
+            overflowX: 'hidden'
+          }}>
+            {/* 1. SİDEBAR: Ekranın solunda sabit */}
+            <Sidebar /> 
             
-            {/* KALAN TÜM ALANI KAPLAYAN İÇERİK */}
-            <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', width: 'calc(100% - 260px)' }}>
+            {/* 2. ANA İÇERİK: Sidebar'dan kalan tüm ekranı (100vw - 280px) esnek bir şekilde kaplar */}
+            <div style={{ 
+              marginLeft: sidebarWidth, 
+              width: `calc(100vw - ${sidebarWidth})`, 
+              display: 'flex', 
+              flexDirection: 'column',
+              minHeight: '100vh'
+            }}>
               <Navbar />
-              <main style={{ flex: 1, padding: '20px' }}>
+              
+              <main style={{ flex: 1 }}>
                 <Routes>
                   <Route path="/home" element={<Home />} />
                   <Route path="/podcasts" element={<Podcast />} />
