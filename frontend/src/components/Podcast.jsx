@@ -48,12 +48,10 @@ function Podcast() {
     }
   };
 
-  // Sadece modalı açar ve silinecek podcast'in ID'sini kaydeder
   const handleDeleteClick = (id) => {
     setPodcastToDelete(id);
   };
 
-  // Gerçek silme işlemini yapan fonksiyon
   const confirmDeletePodcast = async () => {
     if (!podcastToDelete) return;
     
@@ -74,7 +72,7 @@ function Podcast() {
       showToast("Bağlantı hatası yaşandı.", "error");
     } finally {
       setIsDeleting(false);
-      setPodcastToDelete(null); // Modalı kapat
+      setPodcastToDelete(null); 
     }
   };
 
@@ -83,7 +81,6 @@ function Podcast() {
     setPage(1);
   };
 
-  // --- MODERN TASARIM STİLLERİ ---
   const styles = {
     container: { backgroundColor: '#020617', color: '#f1f5f9', minHeight: '100vh', fontFamily: "'Inter', sans-serif", overflowX: 'hidden' },
     toast: {
@@ -97,13 +94,12 @@ function Podcast() {
     card: {
       background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px',
       padding: '2rem', position: 'relative', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-      display: 'flex', flexDirection: 'column', gap: '15px'
+      display: 'flex', flexDirection: 'column', gap: '20px'
     },
     pageNum: (isActive) => ({
       padding: '8px 16px', borderRadius: '12px', border: 'none',
       backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: 'all 0.3s'
     }),
-    // Yeni Modal Stilleri
     modalOverlay: {
       position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)',
       backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center',
@@ -133,14 +129,9 @@ function Podcast() {
         </button>
 
         <h1 style={{ 
-          fontSize: '3rem', 
-          fontWeight: '800', 
-          margin: 0, 
-          letterSpacing: '-1px', 
+          fontSize: '3rem', fontWeight: '800', margin: 0, letterSpacing: '-1px', 
           background: 'linear-gradient(to right, #ffffff, #cbd5e1)', 
-          WebkitBackgroundClip: 'text', 
-          WebkitTextFillColor: 'transparent',
-          lineHeight: '1.2'
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: '1.2'
         }}>
           Podcast Kütüphanem
         </h1>
@@ -172,8 +163,8 @@ function Podcast() {
                     🗑️
                   </button>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    {/* İkon - Home'daki ile aynı tarz */}
+                  {/* 🔥 ÜST KISIM: İkon ve Metinler (Yan Yana) */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     <div style={{ 
                       width: '50px', height: '50px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
                       borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0
@@ -181,19 +172,28 @@ function Podcast() {
                       🎙️
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Arşivi</span>
-                      <h3 style={{ margin: '4px 0', fontSize: '1.3rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pod.title}</h3>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{new Date(pod.created_at).toLocaleString('tr-TR')}</p>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}> {/* Çöp kutusu ile çakışmamak için padding eklendi */}
+                      <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Arşivi</span>
+                      {/* 🔥 whiteSpace: nowrap kaldırıldı, başlık artık tam okunabiliyor */}
+                      <h3 style={{ margin: '8px 0', fontSize: '1.4rem', color: 'white', lineHeight: '1.4' }}>{pod.title}</h3>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{new Date(pod.created_at).toLocaleString('tr-TR')}</p>
                     </div>
+                  </div>
 
-                    {/* Modern Audio Player */}
+                  {/* 🔥 ALT KISIM: Yayılan Modern Audio Player */}
+                  <div style={{ width: '100%', marginTop: '5px' }}>
                     <audio 
                       controls 
                       src={pod.audio_url} 
-                      style={{ height: '30px', width: '220px', filter: 'invert(100%) brightness(1.5)' }} 
+                      style={{ 
+                        height: '40px', 
+                        width: '100%', // Tüm genişliği kaplaması için %100 yapıldı
+                        filter: 'invert(100%) brightness(1.5)',
+                        borderRadius: '12px'
+                      }} 
                     />
                   </div>
+
                 </div>
               ))
             )}
@@ -229,7 +229,6 @@ function Podcast() {
         )}
       </div>
 
-      {/* --- YENİ: SİLME ONAY MODALI --- */}
       {podcastToDelete && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalBox}>
