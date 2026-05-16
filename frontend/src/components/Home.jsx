@@ -9,6 +9,10 @@ function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [podcastStatus, setPodcastStatus] = useState('idle');
   const [podcastId, setPodcastId] = useState(null);
+  
+  // 🔥 SES DOSYASI İÇİN BACKEND'DEN GELEN DİREKT LİNKİ TUTACAĞIZ
+  const [audioUrl, setAudioUrl] = useState(null);
+  
   const pollRef = useRef(null);
   const audioRef = useRef(null); 
   const [refreshing, setRefreshing] = useState(false);
@@ -31,11 +35,13 @@ function Home() {
     }
   }, [toast.show]);
 
+  // Yeni bir ses linki geldiğinde oynatıcıyı otomatik olarak tetikler
   useEffect(() => {
-    if (podcastId && audioRef.current) {
+    if (audioUrl && audioRef.current) {
       audioRef.current.load();
+      audioRef.current.play().catch(() => console.log("Otomatik oynatma tarayıcı tarafından engellendi."));
     }
-  }, [podcastId]);
+  }, [audioUrl]);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
@@ -118,7 +124,6 @@ function Home() {
     }
   };
 
-  // 🔥 YENİDEN EKLENEN POLLING MANTIĞI BURASI
   const stopPolling = () => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -134,34 +139,39 @@ function Home() {
         if (res.ok) {
           const data = await res.json();
           setPodcastId(data.id);
+          
+          // 🔥 ÇÖZÜM: Backend'den gelen temiz linki doğrudan kullanıyoruz
+          setAudioUrl(data.audio_url); 
+          
           setPodcastStatus('ready');
           stopPolling();
           showToast("Podcast hazır!", "success");
-          
-          // 🔥 OTOMATİK OYNATMA GARANTİSİ:
-          // Kısa bir delay ile audio elementinin render olmasını bekleyip play diyoruz
-          setTimeout(() => {
-            if (audioRef.current) {
-              audioRef.current.play().catch(e => console.log("Oynatma engellendi:", e));
-            }
-          }, 500);
         }
       } catch (_) {}
     }, 3000);
   };
 
   const handleNewsClick = async (newsId) => {
-    setPodcastStatus('idle'); setPodcastId(null); stopPolling(); // 🔥 Yeni haber açılınca polling'i durdurur
+    setPodcastStatus('idle'); 
+    setPodcastId(null); 
+    setAudioUrl(null); 
+    stopPolling(); 
     try {
       const detailResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`);
       if (detailResponse.ok) {
         const detailData = await detailResponse.json();
         setSelectedNews(detailData);
       }
+      
       const podRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
       if (podRes.ok) {
         const podData = await podRes.json();
-        setPodcastId(podData.id); setPodcastStatus('ready');
+        setPodcastId(podData.id); 
+        
+        // 🔥 ÇÖZÜM: Önceden üretilmişse direkt veritabanındaki linki kullan
+        setAudioUrl(podData.audio_url); 
+        
+        setPodcastStatus('ready');
       }
     } catch (error) {}
   };
@@ -173,7 +183,7 @@ function Home() {
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/generate/${selectedNews.id}`, { method: 'POST' });
       if (res.ok) {
-        startPolling(selectedNews.id); // 🔥 Üretim komutu başarıyla gidince takip etmeye başlar
+        startPolling(selectedNews.id); 
       } else {
         setPodcastStatus('idle');
       }
@@ -201,13 +211,8 @@ function Home() {
 
   const styles = {
     container: { 
-      color: '#f1f5f9', 
-      fontFamily: "'Inter', sans-serif", 
-      width: '100%', 
-      maxWidth: '1200px', 
-      margin: '0 auto',   
-      padding: '0 2rem',
-      boxSizing: 'border-box' // Padding'in genişliğe dahil olmasını sağlar 
+      color: '#f1f5f9', fontFamily: "'Inter', sans-serif", width: '100%', 
+      maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', boxSizing: 'border-box'
     },
     toast: {
       position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
@@ -217,11 +222,8 @@ function Home() {
       transition: 'all 0.5s', opacity: toast.show ? 1 : 0, zIndex: 9999,
     },
     bentoGrid: { 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-      gap: '28px', 
-      marginBottom: '4rem',
-      width: '100%'
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+      gap: '28px', marginBottom: '4rem', width: '100%'
     },
     newsCard: {
       background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '28px',
@@ -235,8 +237,7 @@ function Home() {
       position: 'fixed', bottom: '30px', left: 'calc(50% + 140px)', transform: 'translateX(-50%)',
       width: '90%', maxWidth: '520px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
       border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 2rem', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', 
-      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Giriş efekti
-      pointerEvents: 'auto' // Tıklamaları yakalaması için zorunlu
+      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto' 
     }
   };
 
@@ -294,22 +295,15 @@ function Home() {
         </div>
       )}
 
-      {podcastId && podcastStatus === 'ready' && (
+      {/* YÜZER OYNATICI - ARTIK SADECE AUDIO_URL VARSA OYNAR */}
+      {podcastId && podcastStatus === 'ready' && audioUrl && (
         <div style={styles.floatingPlayer}>
-          {/* İkon Kısmı */}
-          <div style={{ 
-            width: '45px', height: '45px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
-            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' 
-          }}>
+          <div style={{ width: '45px', height: '45px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
             🎙️
           </div>
 
-          {/* Metin Kısmı */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ 
-              color: 'white', fontSize: '0.85rem', fontWeight: '700', 
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
-            }}>
+            <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {selectedNews?.title || "Sesli Özet"}
             </div>
             <div style={{ color: '#818cf8', fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px' }}>
@@ -317,23 +311,17 @@ function Home() {
             </div>
           </div>
 
-          {/* Player Kısmı */}
           <audio 
             ref={audioRef} 
             controls 
             key={podcastId} 
-            src={`${import.meta.env.VITE_API_URL}/podcast/${podcastId}/audio?t=${Date.now()}`} 
-            onCanPlay={(e) => e.target.play().catch(() => {})} // Hazır olduğu an oynatmayı dene
+            src={audioUrl} 
             style={{ height: '32px', width: '200px', filter: 'invert(100%) hue-rotate(180deg) brightness(1.5)', position: 'relative', zIndex: 10000, cursor: 'pointer'}} 
           />
 
-          {/* Kapat Butonu */}
           <button 
-            onClick={() => setPodcastId(null)} 
-            style={{ 
-              background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', 
-              width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', transition: '0.2s' 
-            }}
+            onClick={() => { setPodcastId(null); setAudioUrl(null); }} 
+            style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', transition: '0.2s' }}
             onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
             onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
           >
@@ -348,10 +336,14 @@ function Home() {
             <button onClick={() => { setSelectedNews(null); }} style={{ position: 'absolute', top: '35px', right: '35px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '2.2rem', cursor: 'pointer' }}>✖</button>
             <h2 style={{ fontSize: '2.6rem', fontWeight: '900', color: 'white', marginBottom: '30px' }}>{selectedNews.title}</h2>
             <div style={{ lineHeight: '1.9', color: '#cbd5e1', fontSize: '1.25rem', whiteSpace: 'pre-wrap' }}>{selectedNews.content}</div>
+            
             <div style={{ marginTop: '3rem' }}>
-              {podcastStatus === 'idle' && <button onClick={handleGeneratePodcast} style={{ padding: '16px 36px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>🎙 Podcast Oluştur</button>}
+              {podcastStatus === 'idle' && <button onClick={handleGeneratePodcast} style={{ padding: '16px 36px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.4)' }}>🎙 Podcast Oluştur</button>}
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold' }}>🎧 Hazırlanıyor...</p>}
+              
+              {/* MODAL İÇİNDEKİ İKİNCİ OYNATICI TAMAMEN SİLİNDİ! ARTIK SADECE YÜZER OYNATICI VAR */}
             </div>
+            
           </div>
         </div>
       )}
