@@ -11,9 +11,14 @@ RUN npm install
 # 4. Geri kalan tüm frontend kodlarını kopyalıyoruz
 COPY . .
 
-# 5. Vite'ın varsayılan portu olan 5173'ü dışarı açıyoruz
-EXPOSE 5173
+# 5. Projeyi production modunda derle (dist klasörü hatasız oluşsun)
+RUN npm run build
 
-# 6. Uygulamayı dışarıdan erişilecek şekilde başlatıyoruz
-# Cloud Run portu ne verirse o portta yayına alması için preview komutunu esnetiyoruz
-CMD ["npm", "run", "preview", "--", "--port", "8080", "--host"]
+# 6. Statik dosyaları en hafif ve kararlı şekilde sunacak paketi küresel yüklüyoruz
+RUN npm install -g sirv-cli
+
+# 7. Cloud Run için standart portu açıyoruz
+EXPOSE 8080
+
+# 8. Derlenen dist klasörünü, Cloud Run'ın dayattığı portta doğrudan dünyaya açıyoruz
+CMD ["sh", "-c", "sirv dist --port ${PORT:-8080} --host --single"]
