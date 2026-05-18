@@ -36,4 +36,4 @@ EXPOSE 8080
 
 # 9. Uygulamayı ayağa kaldırıyoruz
 # --proxy-headers: Cloud Run/Load Balancer arkasında gerçek IP'leri görebilmek için kritik
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers

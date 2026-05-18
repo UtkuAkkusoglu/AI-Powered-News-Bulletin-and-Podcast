@@ -66,14 +66,19 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # API'yi Canlıya Al (Imajı doğrudan depodan çeker)
+      # API'yi Canlıya Al (Siber Güvenlik Standartlarına Tam Uyumlu)
       - name: Deploy Backend to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: news-and-podcast-api
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/api:${{ github.sha }}
           region: ${{ env.REGION }}
-          flags: '--allow-unauthenticated --port=8000'
+          flags: |
+            --allow-unauthenticated 
+            --port=8080
+            --service-account=news-and-podcast-sa@project-9b6d702e-bc81-4d20-aff.iam.gserviceaccount.com
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,POSTGRES_USER=POSTGRES_USER:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest
+            --set-env-vars=POSTGRES_DB=news_and_podcast,PGDATA=/var/lib/postgresql/data/pgdata,CELERY_BROKER_URL=redis://redis:6379/0,GCP_PROJECT_ID=project-9b6d702e-bc81-4d20-aff,GCP_BUCKET_NAME=news-and-podcast-storage
 
       # Frontend'i Canlıya Al (Imajı doğrudan depodan çeker)
       - name: Deploy Frontend to Cloud Run
