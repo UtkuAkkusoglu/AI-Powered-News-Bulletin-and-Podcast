@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     GCP_PROJECT_ID: str = "project-9b6d702e-bc81-4d20-aff"
     GCP_BUCKET_NAME: str
     GCP_LOCATION: str = "europe-west3"
+    FRONTEND_URL: str = "http://localhost:5173"  # Localde varsayılan değer, bulutta ezilecek.
 
     # Pydantic'e .env dosyasını nasıl okuyacağını söylüyoruz
     model_config = SettingsConfigDict(

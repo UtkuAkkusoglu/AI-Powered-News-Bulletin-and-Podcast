@@ -7,6 +7,7 @@ import models
 from seed_data import seed_categories
 import logging
 from fastapi.middleware.cors import CORSMiddleware
+from config import settings
 
 # Loglama: Hataları terminalde görelim ki neyin patladığını bilelim (Uygulama başlamadan hemen önce olması iyidir)
 logging.basicConfig(level=logging.INFO)
@@ -17,10 +18,21 @@ app = FastAPI(
     description="A 12-factor API that summarizes news and creates podcasts.",
 )
 
+# CORSOrigins listesini dinamik yapıyoruz:
+# .env dosyasında VITE_API_URL'in hemen altına FRONTEND_URL=http://localhost:5173 yazabilirsin.
+# Canlıya çıkarken de deploy.yml içinden bunu canlı linkle besleyeceğiz.
+allowed_origins = [
+    "http://localhost:5173",  # Local her zaman izinli kalsın
+]
+
+# Eğer config içinde FRONTEND_URL tanımlandıysa listeye ekle
+if hasattr(settings, "FRONTEND_URL") and settings.FRONTEND_URL:
+    allowed_origins.append(settings.FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], 
-    allow_credentials=True, # Çerez transferine izin verir[cite: 7]
+    allow_origins=allowed_origins, 
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

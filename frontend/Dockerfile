@@ -15,5 +15,5 @@ COPY . .
 EXPOSE 5173
 
 # 6. Uygulamayı dışarıdan erişilecek şekilde başlatıyoruz
-# (--host eklemek zorundayız yoksa Docker içinden dışarıya yayın yapmaz)
-CMD ["npm", "run", "dev", "--", "--host"]
+# Cloud Run portu ne verirse o portta yayına alması için preview komutunu esnetiyoruz
+CMD ["npm", "run", "preview", "--", "--port", "8080", "--host"]
