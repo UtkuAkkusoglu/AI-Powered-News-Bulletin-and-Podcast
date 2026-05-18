@@ -107,7 +107,7 @@ jobs:
             --set-secrets=DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,POSTGRES_USER=POSTGRES_USER:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest
             --set-env-vars=POSTGRES_DB=news_and_podcast,PGDATA=/var/lib/postgresql/data/pgdata,GCP_PROJECT_ID=project-9b6d702e-bc81-4d20-aff,GCP_BUCKET_NAME=news-and-podcast-storage
             --command=sh
-            --args=-c,python -m http.server 8080 & celery -A worker.celery_app worker --loglevel=info --concurrency=1 -Q scraper_queue
+            --args=-c,celery -A worker.celery_app worker --loglevel=info --concurrency=1 -Q scraper_queue & python -m http.server 8080
 
       # VIP WORKER: AI ve Podcast İşlerini Yapar
       # 💡 MİMARİ NOT: Cloud Run zorunlu port kontrolü (8080) yaptığı için, arka planda hafif bir Python HTTP sunucusu açarak bu kontrolü bypass ediyoruz.
@@ -125,4 +125,4 @@ jobs:
             --set-secrets=DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,POSTGRES_USER=POSTGRES_USER:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest
             --set-env-vars=POSTGRES_DB=news_and_podcast,PGDATA=/var/lib/postgresql/data/pgdata,GCP_PROJECT_ID=project-9b6d702e-bc81-4d20-aff,GCP_BUCKET_NAME=news-and-podcast-storage
             --command=sh
-            --args=-c,python -m http.server 8080 & celery -A worker.celery_app worker --loglevel=info --concurrency=4 -Q ai_queue
+            --args=-c,celery -A worker.celery_app worker --loglevel=info --concurrency=4 -Q ai_queue & python -m http.server 8080
