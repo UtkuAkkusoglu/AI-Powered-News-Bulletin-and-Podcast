@@ -91,7 +91,7 @@ jobs:
           region: ${{ env.REGION }}
           flags: '--allow-unauthenticated --port=8080'
 
-      # AMELE WORKER: Scraper İşlerini Yapar (Redis Gizlendi!)
+      # AMELE WORKER: Scraper İşlerini Yapar
       - name: Deploy Scraper Worker to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
@@ -104,10 +104,10 @@ jobs:
             --service-account=news-and-podcast-sa@project-9b6d702e-bc81-4d20-aff.iam.gserviceaccount.com
             --set-secrets=DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,POSTGRES_USER=POSTGRES_USER:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest
             --set-env-vars=POSTGRES_DB=news_and_podcast,PGDATA=/var/lib/postgresql/data/pgdata,GCP_PROJECT_ID=project-9b6d702e-bc81-4d20-aff,GCP_BUCKET_NAME=news-and-podcast-storage
-            --command=celery
-            --args=-A,worker.celery_app,worker,--loglevel=info,--concurrency=1,-Q,scraper_queue
+            --command="celery"
+            --args="-A worker.celery_app worker --loglevel=info --concurrency=1 -Q scraper_queue"
 
-      # VIP WORKER: AI ve Podcast İşlerini Yapar (Redis Gizlendi!)
+      # VIP WORKER: AI ve Podcast İşlerini Yapar
       - name: Deploy AI Worker to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
@@ -120,5 +120,5 @@ jobs:
             --service-account=news-and-podcast-sa@project-9b6d702e-bc81-4d20-aff.iam.gserviceaccount.com
             --set-secrets=DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,POSTGRES_USER=POSTGRES_USER:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest
             --set-env-vars=POSTGRES_DB=news_and_podcast,PGDATA=/var/lib/postgresql/data/pgdata,GCP_PROJECT_ID=project-9b6d702e-bc81-4d20-aff,GCP_BUCKET_NAME=news-and-podcast-storage
-            --command=celery
-            --args=-A,worker.celery_app,worker,--loglevel=info,--concurrency=4,-Q,ai_queue
+            --command="celery"
+            --args="-A worker.celery_app worker --loglevel=info --concurrency=4 -Q ai_queue"
