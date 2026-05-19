@@ -110,7 +110,7 @@ function Home() {
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
   
   const handleCategoryChange = (catId) => { 
-    // 🛑 Eğer havada asılı kalan bir büyük POST yenileme isteği varsa, onu anında kesiyoruz reis!
+    // 🛑 Eğer havada asılı kalan bir büyük POST yenileme isteği varsa, onu anında kesiyoruz!
     if (refreshAbortControllerRef.current) {
       refreshAbortControllerRef.current.abort();
       refreshAbortControllerRef.current = null;
@@ -140,18 +140,20 @@ function Home() {
       refreshAbortControllerRef.current.abort();
     }
 
-    // Büyük yenileme isteğini (POST) takip edebilmek için yeni bir AbortController oluşturuyoruz
+    // Büyük yenileme işlemi (POST) için taze bir AbortController oluşturuyoruz
     const refreshController = new AbortController();
     refreshAbortControllerRef.current = refreshController;
 
+    // 🔄 GERÇEK ZAMANLI TASK TRACKING MECHANISM
     const poll = setInterval(async () => {
       try {
-        // 🎯 Eğer kullanıcı o esnada başka kategoriye zıpladıysa, bu döngü eski kategoriye haber basmasın, kendini imha etsin!
+        // 🎯 Eğer kullanıcı o esnada başka kategoriye zıpladıysa, bu döngü kendini imha etsin!
         if (currentSnapshotCategoryId !== activeCategoryId) {
           clearInterval(poll);
           return;
         }
 
+        // Önce ekrandaki haber listesini canlı canlı güncelle reis
         const params = new URLSearchParams({ page: 1, size: pageSize });
         if (activeCategoryId === 0) {} 
         else if (activeCategoryId) params.set('category_id', activeCategoryId);
@@ -163,30 +165,33 @@ function Home() {
           setNewsList(data.items);
           setTotalCount(data.total_count);
         }
+
+        // 📡 SİHİRLİ DOKUNUŞ: Backend'deki scraper'ın gerçek durumunu sorgula!
+        const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse operasyonu başarıyla bitir reis!
+          if (statusData.status === "idle") {
+            clearInterval(poll);
+            setRefreshing(false);
+            fetchNews(searchTerm, 1, pageSize, activeCategoryId);
+            showToast("Gündem başarıyla güncellendi!", "success");
+          }
+        }
       } catch (_) {}
     }, 4000);
 
     try {
-      // 大 Büyük POST isteğimize sinyali bağlıyoruz reis. Kategori değişirse tarayıcı bu isteğin yanıtını dinlemeyi bırakacak.
+      // 📡 Büyük POST isteği yola çıkıyor (Sadece görevi tetikleyip hemen dönecek)
       await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { 
         method: 'POST',
         signal: refreshController.signal
       });
-
-      // İstek sorunsuz bittiyse ve kullanıcı hâlâ butona bastığı kategorideyse listeyi son kez tazele
-      if (currentSnapshotCategoryId === activeCategoryId) {
-        fetchNews(searchTerm, 1, pageSize, activeCategoryId);
-      }
     } catch (error) {
-      // Eğer kategori değiştiği için iptal edildiyse konsola hata basıp panik yaptırma
-      if (error.name === 'AbortError') return;
-    } finally {
-      // Her halükarda (iptal olsa da bitse de) döngüyü temizle ve durumları sıfırla reis
-      clearInterval(poll);
-      setRefreshing(false);
-      
-      if (currentSnapshotCategoryId === activeCategoryId) {
-        showToast("Gündem başarıyla güncellendi!", "success");
+      // Eğer kullanıcı kategori değiştirdiği için istek iptal edildiyse her şeyi temizle!
+      if (error.name === 'AbortError') {
+        clearInterval(poll);
+        setRefreshing(false);
       }
     }
   };

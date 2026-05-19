@@ -164,3 +164,14 @@ def get_news_detail(news_id: int, db: db_dependency, current_user: user_dependen
     if not news:
         raise HTTPException(status_code=404, detail="News not found!")
     return news
+
+@router.get("/refresh/status")
+def get_refresh_status():
+    """
+    - Frontend'in körü körüne beklemek yerine, arka plandaki scraper'ın 
+      aktif olarak çalışıp çalışmadığını (is_currently_scraping) gerçek zamanlı sorguladığı yer.
+    """
+    from scraper import is_currently_scraping
+    # Eğer is_currently_scraping True ise iş devam ediyordur (processing), False ise bitmiştir (idle)
+    status_str = "processing" if is_currently_scraping else "idle"
+    return {"status": status_str}
