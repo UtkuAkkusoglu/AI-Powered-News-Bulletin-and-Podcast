@@ -119,6 +119,68 @@ def process_news_and_tts_task(news_id: int, user_id: int):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
+@celery_app.task(name="auto_generate_summaries_and_embeddings", queue="ai_queue")
+def auto_generate_summaries_and_embeddings_task():
+    """
+    ### UTKU (AI Pipeline):
+    - Scraper bittiği an tetiklenir. Veritabanında özeti ve embedding'i olmayan 
+      tüm taze haberleri bulur ve Gemini ile senkron olarak özetlerini üretir.
+    """
+    db = SessionLocal()
+    try:
+        # Özeti veya embedding'i eksik olan taze haberleri yakala
+        unprocessed_news = db.query(models.News).filter(
+            (models.News.summary.is_(None)) | (models.News.embedding.is_(None))
+        ).all()
+
+        if not unprocessed_news:
+            print("[AI Pipeline] Özetlenecek eksik haber bulunamadı.")
+            return {"status": "success", "message": "All news are already processed."}
+
+        print(f"[AI Pipeline] {len(unprocessed_news)} adet taze haber özet zincirine alınıyor...")
+
+        ai_client = genai.Client(
+            vertexai=True,
+            project=settings.GCP_PROJECT_ID,
+            location=settings.GCP_LOCATION,
+        )
+
+        for news in unprocessed_news:
+            try:
+                # 1. Eğer özeti yoksa Gemini ile üret reis
+                if not news.summary:
+                    print(f"[AI Pipeline] '{news.title[:50]}' için özet üretiliyor...")
+                    prompt = (
+                        "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
+                        "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
+                        "madde işareti veya başlık kullanma:\n\n"
+                        f"{news.content}"
+                    )
+                    gemini_response = ai_client.models.generate_content(
+                        model="publishers/google/models/gemini-2.5-flash",
+                        contents=prompt,
+                    )
+                    news.summary = gemini_response.text.strip()
+                    db.commit()
+
+                # 2. Eğer semantik arama embedding'i yoksa onu da aradan çıkart reis
+                if news.embedding is None:
+                    print(f"[AI Pipeline] '{news.title[:50]}' için vektör embedding üretiliyor...")
+                    embedding_text = f"{news.title}\n\n{news.content}"
+                    news.embedding = get_embedding(embedding_text, task_type="retrieval_document")
+                    db.commit()
+
+            except Exception as inner_e:
+                db.rollback()
+                print(f"[AI Pipeline] Haber işlenirken pürüz çıktı ({news.id}): {inner_e}")
+                continue
+
+        return {"status": "success", "processed_count": len(unprocessed_news)}
+    except Exception as e:
+        print(f"[AI Pipeline] Kritik zincir hatası: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 @celery_app.task(name="run_scraper", queue="scraper_queue")
 def run_scraper_task():
@@ -128,6 +190,10 @@ def run_scraper_task():
     from scraper import scrape_to_db
     try:
         result = scrape_to_db()
+        
+        # Scraper başarıyla bittiği an, arka planda özetleme görevini zincirle tetikle!
+        auto_generate_summaries_and_embeddings_task.delay()
+        
         return {"status": "success", **result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
