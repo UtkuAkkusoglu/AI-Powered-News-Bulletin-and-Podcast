@@ -25,6 +25,8 @@ function Home() {
 
   // 🛡️ Havada asılı kalan eski HTTP isteklerini iptal etmek için Ref
   const abortControllerRef = useRef(null);
+  // 🛡️ Döngülerin (setInterval) içinde her zaman en güncel kategori ID'sini yakalamak için Ref
+  const activeCategoryIdRef = useRef(activeCategoryId);
   // 🛡️ Havada giden büyük POST yenileme isteğini kontrol etmek için yeni Ref
   const refreshAbortControllerRef = useRef(null);
 
@@ -110,6 +112,9 @@ function Home() {
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
   
   const handleCategoryChange = (catId) => { 
+    // Ref'i anında en güncel kategori ID'si ile eşitliyoruz, böylece herhangi bir döngü veya asenkron işlem içinde doğru değeri yakalayabiliriz
+    activeCategoryIdRef.current = catId;
+
     // 🛑 Eğer havada asılı kalan bir büyük POST yenileme isteği varsa, onu anında kesiyoruz!
     if (refreshAbortControllerRef.current) {
       refreshAbortControllerRef.current.abort();
@@ -170,11 +175,14 @@ function Home() {
         const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
         if (statusRes.ok) {
           const statusData = await statusRes.json();
-          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse operasyonu başarıyla bitir reis!
+          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse operasyonu başarıyla bitir
           if (statusData.status === "idle") {
             clearInterval(poll);
             setRefreshing(false);
-            fetchNews(searchTerm, 1, pageSize, activeCategoryId);
+            
+            // 🎯 CRITICAL FIX: Döngü bittiğinde ekranda EN SON hangi kategori açıksa onun haberlerini çek reis!
+            fetchNews(searchTerm, 1, pageSize, activeCategoryIdRef.current);
+            
             showToast("Gündem başarıyla güncellendi!", "success");
           }
         }
