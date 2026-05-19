@@ -23,6 +23,9 @@ function Home() {
   const [userInterests, setUserInterests] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null); 
 
+  // 🛡️ Havada asılı kalan eski HTTP isteklerini iptal etmek için Ref
+  const abortControllerRef = useRef(null);
+
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -58,11 +61,24 @@ function Home() {
     loadUser();
   }, []);
 
+  // 🔄 Kategori veya sayfa değiştiğinde eski havada kalan istekleri Abort et
   useEffect(() => {
-    fetchNews(searchTerm, page, pageSize, activeCategoryId);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    fetchNews(searchTerm, page, pageSize, activeCategoryId, controller.signal);
+
+    return () => {
+      controller.abort();
+    };
   }, [page, pageSize, activeCategoryId]);
 
-  const fetchNews = async (query = '', p = page, size = pageSize, catId = activeCategoryId) => {
+  // 📡 fetchNews fonksiyonuna iptal sinyali (signal) parametresi ekledik
+  const fetchNews = async (query = '', p = page, size = pageSize, catId = activeCategoryId, signal = null) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: p, size });
@@ -74,13 +90,15 @@ function Home() {
         params.set('interests_only', 'true');
       }
       
-      const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);
+      const response = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`, { signal });
       if (response.ok) {
         const data = await response.json();
         setNewsList(data.items);
         setTotalCount(data.total_count);
       }
     } catch (error) {
+      // İstek bizim tarafımızdan bilinçli iptal edildiyse hata fırlatıp arayüzü darlama
+      if (error.name === 'AbortError') return;
       showToast("Haberler çekilirken bir sorun oluştu.", "error");
     } finally {
       setLoading(false);
@@ -88,7 +106,16 @@ function Home() {
   };
 
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
-  const handleCategoryChange = (catId) => { setActiveCategoryId(catId); setPage(1); };
+  
+  const handleCategoryChange = (catId) => { 
+    // 🛑 Kullanıcı kategori değiştirdiği saniyede canlı akış döngüsünü durduruyoruz
+    if (refreshing) {
+      setRefreshing(false);
+    }
+    setActiveCategoryId(catId); 
+    setPage(1); 
+  };
+  
   const handlePageSizeChange = (newSize) => { setPageSize(newSize); setPage(1); };
 
   const handleRefresh = async () => {
@@ -97,8 +124,17 @@ function Home() {
     setPage(1); 
     showToast("Gündem tazeleniyor, canlı akış başladı...", "success");
 
+    // 📸 Tazeleme işleminin başladığı andaki kategori ID'sinin anlık görüntüsü (Snapshot)
+    const currentSnapshotCategoryId = activeCategoryId;
+
     const poll = setInterval(async () => {
       try {
+        // 🎯 Eğer kullanıcı o esnada başka kategoriye zıpladıysa, bu döngü eski kategoriye haber basmasın, kendini imha etsin!
+        if (currentSnapshotCategoryId !== activeCategoryId) {
+          clearInterval(poll);
+          return;
+        }
+
         const params = new URLSearchParams({ page: 1, size: pageSize });
         if (activeCategoryId === 0) {} 
         else if (activeCategoryId) params.set('category_id', activeCategoryId);
