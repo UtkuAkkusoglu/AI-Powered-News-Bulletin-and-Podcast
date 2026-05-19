@@ -158,7 +158,25 @@ function Home() {
           return;
         }
 
-        // Önce ekrandaki haber listesini canlı canlı güncelle reis
+        // 📡 ÖNCE SİHİRLİ DOKUNUŞ: Backend'deki scraper'ın gerçek durumunu sorgula reis!
+        const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          
+          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse...
+          if (statusData.status === "idle") {
+            clearInterval(poll);
+            setRefreshing(false);
+            
+            // 🎯 Doğrudan ve sadece EN SON aktif olan kategorinin haberlerini çek, eskiyi araya hiç karıştırma!
+            fetchNews(searchTerm, 1, pageSize, activeCategoryIdRef.current);
+            
+            showToast("Gündem başarıyla güncellendi!", "success");
+            return; // Döngüden çık, aşağıdaki fetch'e hiç uğrama reis!
+          }
+        }
+
+        // 📊 Eğer iş hala devam ediyorsa (processing), o zaman o anki kategori listesini canlı güncelle
         const params = new URLSearchParams({ page: 1, size: pageSize });
         if (activeCategoryId === 0) {} 
         else if (activeCategoryId) params.set('category_id', activeCategoryId);
@@ -171,21 +189,6 @@ function Home() {
           setTotalCount(data.total_count);
         }
 
-        // 📡 SİHİRLİ DOKUNUŞ: Backend'deki scraper'ın gerçek durumunu sorgula!
-        const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
-        if (statusRes.ok) {
-          const statusData = await statusRes.json();
-          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse operasyonu başarıyla bitir
-          if (statusData.status === "idle") {
-            clearInterval(poll);
-            setRefreshing(false);
-            
-            // 🎯 CRITICAL FIX: Döngü bittiğinde ekranda EN SON hangi kategori açıksa onun haberlerini çek reis!
-            fetchNews(searchTerm, 1, pageSize, activeCategoryIdRef.current);
-            
-            showToast("Gündem başarıyla güncellendi!", "success");
-          }
-        }
       } catch (_) {}
     }, 4000);
 
