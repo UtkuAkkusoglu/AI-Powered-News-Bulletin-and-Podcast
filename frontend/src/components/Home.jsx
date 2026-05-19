@@ -25,6 +25,8 @@ function Home() {
 
   // 🛡️ Havada asılı kalan eski HTTP isteklerini iptal etmek için Ref
   const abortControllerRef = useRef(null);
+  // 🛡️ Havada giden büyük POST yenileme isteğini kontrol etmek için yeni Ref
+  const refreshAbortControllerRef = useRef(null);
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
@@ -108,6 +110,12 @@ function Home() {
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
   
   const handleCategoryChange = (catId) => { 
+    // 🛑 Eğer havada asılı kalan bir büyük POST yenileme isteği varsa, onu anında kesiyoruz reis!
+    if (refreshAbortControllerRef.current) {
+      refreshAbortControllerRef.current.abort();
+      refreshAbortControllerRef.current = null;
+    }
+
     // 🛑 Kullanıcı kategori değiştirdiği saniyede canlı akış döngüsünü durduruyoruz
     if (refreshing) {
       setRefreshing(false);
@@ -126,6 +134,15 @@ function Home() {
 
     // 📸 Tazeleme işleminin başladığı andaki kategori ID'sinin anlık görüntüsü (Snapshot)
     const currentSnapshotCategoryId = activeCategoryId;
+
+    // Havada asılı duran eski bir yenileme sinyali varsa önceden tedbir amaçlı iptal et
+    if (refreshAbortControllerRef.current) {
+      refreshAbortControllerRef.current.abort();
+    }
+
+    // Büyük yenileme isteğini (POST) takip edebilmek için yeni bir AbortController oluşturuyoruz
+    const refreshController = new AbortController();
+    refreshAbortControllerRef.current = refreshController;
 
     const poll = setInterval(async () => {
       try {
@@ -150,13 +167,27 @@ function Home() {
     }, 4000);
 
     try {
-      await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { method: 'POST' });
+      // 大 Büyük POST isteğimize sinyali bağlıyoruz reis. Kategori değişirse tarayıcı bu isteğin yanıtını dinlemeyi bırakacak.
+      await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { 
+        method: 'POST',
+        signal: refreshController.signal
+      });
+
+      // İstek sorunsuz bittiyse ve kullanıcı hâlâ butona bastığı kategorideyse listeyi son kez tazele
+      if (currentSnapshotCategoryId === activeCategoryId) {
+        fetchNews(searchTerm, 1, pageSize, activeCategoryId);
+      }
+    } catch (error) {
+      // Eğer kategori değiştiği için iptal edildiyse konsola hata basıp panik yaptırma
+      if (error.name === 'AbortError') return;
     } finally {
-      setTimeout(() => {
-        clearInterval(poll);
-        setRefreshing(false);
+      // Her halükarda (iptal olsa da bitse de) döngüyü temizle ve durumları sıfırla reis
+      clearInterval(poll);
+      setRefreshing(false);
+      
+      if (currentSnapshotCategoryId === activeCategoryId) {
         showToast("Gündem başarıyla güncellendi!", "success");
-      }, 40000);
+      }
     }
   };
 
