@@ -10,6 +10,7 @@ Kullanım:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -71,6 +72,39 @@ is_currently_scraping = False
 
 # ─── Yardımcı Fonksiyonlar ────────────────────────────────────────────────────
 
+def clean_news_content(text: str) -> str:
+    """
+    ### Data Cleaning Pipeline:
+    - Web sitelerindeki arayüz çöplerini, navigasyon gürültülerini 
+      ve sosyal medya buton yazılarını temizler.
+    """
+    if not text:
+        return ""
+    
+    # Satır başlarındaki veya içindeki "Haberin Devamı" kalıplarını uçur
+    text = re.sub(r"(?i)haberin\s+devamı", "", text)
+    
+    # Haber sonlarındaki web gürültülerini temizle
+    noise_patterns = [
+        r"paylaş[:\-\s]*",
+        r"henüz\s+yorum\s+yok",
+        r"ilk\s+yorumu\s+yaz",
+        r"yorumunuz\s+gönderildi.*",
+        r"onaylandıktan\s+sonra\s+yayımlanacak.*",
+        r"yorum\s+yaz\s+iptal",
+        r"gözden\s+kaçmasın"
+    ]
+    
+    for pattern in noise_patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+    
+    # Fazlalık whitespace, tab ve boş satırları düzelt
+    text = re.sub(r'\n+', '\n', text)  
+    text = re.sub(r' +', ' ', text)    
+    
+    return text.strip()
+
+
 def load_seen_urls() -> set:
     """Önceki çalışmalardan kalan URL'leri yükle (tekrar yüklemeyi önler)."""
     if SEEN_URLS_FILE.exists():
@@ -103,7 +137,7 @@ def extract_content(url: str) -> str | None:
         if el:
             text = el.get_text(separator=" ", strip=True)
             if len(text) >= MIN_CONTENT_LENGTH:
-                return text
+                return clean_news_content(text)
 
     # Fallback: uzun <p> taglarını birleştir
     paragraphs = [
@@ -112,7 +146,7 @@ def extract_content(url: str) -> str | None:
         if len(p.get_text(strip=True)) > 50
     ]
     text = " ".join(paragraphs)
-    return text if len(text) >= MIN_CONTENT_LENGTH else None
+    return clean_news_content(text) if len(text) >= MIN_CONTENT_LENGTH else None
 
 
 def extract_image(entry) -> str | None:
@@ -213,7 +247,7 @@ def scrape_to_db(limit: int = 0) -> dict:
             feed = feedparser.parse(source["url"])
 
             if not feed.entries:
-                print("  Feed boş veya erişilemiyor.")
+                print(" Feed boş veya erişilemiyor.")
                 continue
 
             for entry in feed.entries:
