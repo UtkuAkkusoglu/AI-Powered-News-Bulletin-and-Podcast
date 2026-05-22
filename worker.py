@@ -122,16 +122,15 @@ def process_news_and_tts_task(news_id: int, user_id: int):
 @celery_app.task(name="auto_generate_summaries_and_embeddings", queue="ai_queue")
 def auto_generate_summaries_and_embeddings_task():
     """
-    ### UTKU (AI Pipeline):
     - Scraper bittiği an tetiklenir. Veritabanında özeti ve embedding'i olmayan 
-      tüm taze haberleri bulur ve Gemini ile senkron olarak özetlerini üretir.
+      taze haberleri en güncelden başlayarak maksimum 500 adet olacak şekilde çeker.
     """
     db = SessionLocal()
     try:
-        # Özeti veya embedding'i eksik olan taze haberleri yakala
+        # 🎯 UTKU (Kurşun Geçirmez Jüri Ayarı): Ağ kopmalarını önlemek için yükü 500 ile kesip en tazeden sıralıyoruz.
         unprocessed_news = db.query(models.News).filter(
             (models.News.summary.is_(None)) | (models.News.embedding.is_(None))
-        ).all()
+        ).order_by(models.News.created_at.desc()).limit(500).all()
 
         if not unprocessed_news:
             print("[AI Pipeline] Özetlenecek eksik haber bulunamadı.")
