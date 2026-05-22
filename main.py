@@ -8,6 +8,7 @@ from seed_data import seed_categories
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
+from worker import run_scraper_task
 
 # Loglama: Hataları terminalde görelim ki neyin patladığını bilelim (Uygulama başlamadan hemen önce olması iyidir)
 logging.basicConfig(level=logging.INFO)
@@ -81,8 +82,28 @@ def startup_event():
     db = SessionLocal()
     try:
         seed_categories(db) # Kategorileri kontrol et ve eksikse ekle
+        
+        # 🎯 UTKU (Otonom İlklendirme): Uygulama ilk kez ayağa kalkarken otomatik haber çekimini başlatıyoruz.
+        # .delay() kullandığımız için API'nin açılış hızı sıfır kesintiye uğrar, iş asenkron kuyruğa devredilir.
+        logger.info("[System Startup] Uygulama ilk açılış tetikleyicisi: Scraper görevi asenkron olarak kuyruğa fırlatılıyor...")
+        run_scraper_task.delay()
+        
+    except Exception as e:
+        logger.error(f"[System Startup] İlk açılış tetikleme hatası: {e}")
     finally:
         db.close()
+
+# (pgvector Otomatik İlklendirme): 
+# Tablolar oluşturulmadan önce veritabanında pgvector eklentisinin varlığını garanti ediyoruz.
+# Local DB sıfırlandığında 'type vector does not exist' hatası almamızı kökten engeller.
+from sqlalchemy import text
+try:
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        conn.commit()
+        logger.info("[Database] pgvector extension checked/created successfully.")
+except Exception as e:
+    logger.error(f"[Database] Failed to create pgvector extension: {e}")
 
 # Proje başladığında tabloları kontrol eder/oluşturur
 # (Biz Alembic kullanıyoruz, bu güvenlik önlemi olarak kalabilir ama veritabanındaki değişiklikler için Alembic migration'ları yazarken bu kodu kullanmayacağız)
