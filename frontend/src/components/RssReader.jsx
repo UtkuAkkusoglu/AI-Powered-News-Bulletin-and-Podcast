@@ -375,7 +375,7 @@ function RssReader() {
                   <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '0.85rem' }}>{selectedList.feed_count || 0} kaynak · {articles.length} makale</p>
                 </div>
                 <button onClick={() => setShowFeedForm(p => !p)} style={{ ...s.btn(showFeedForm ? 'ghost' : 'primary'), whiteSpace: 'nowrap' }}>
-                  {showFeedForm ? '✕ Kapat' : '+ RSS Ekle'}
+                  {showFeedForm ? '✕ Kapat' : '+ RSS Ekle/Kaldır'}
                 </button>
               </div>
 
