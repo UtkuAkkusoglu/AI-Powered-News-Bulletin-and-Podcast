@@ -42,8 +42,9 @@ def process_news_and_tts_task(news_id: int, user_id: int):
             location=settings.GCP_LOCATION,
         )
         prompt = (
-            "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
-            "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
+            "Aşağıdaki haberi Türkçe olarak kapsamlı bir podcast özeti olarak hazırla. "
+            "Haberin tüm önemli detaylarını, bağlamını ve sonuçlarını kapsayan 8-12 cümlelik akıcı bir anlatı oluştur. "
+            "Podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
             "madde işareti veya başlık kullanma:\n\n"
             f"{news.content}"
         )
@@ -150,8 +151,9 @@ def auto_generate_summaries_and_embeddings_task():
                 if not news.summary:
                     print(f"[AI Pipeline] '{news.title[:50]}' için özet üretiliyor...")
                     prompt = (
-                        "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
-                        "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
+                        "Aşağıdaki haberi Türkçe olarak kapsamlı bir podcast özeti olarak hazırla. "
+                        "Haberin tüm önemli detaylarını, bağlamını ve sonuçlarını kapsayan 8-12 cümlelik akıcı bir anlatı oluştur. "
+                        "Podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
                         "madde işareti veya başlık kullanma:\n\n"
                         f"{news.content}"
                     )
@@ -195,8 +197,9 @@ def process_rss_article_tts_task(title: str, content: str, user_id: int):
             location=settings.GCP_LOCATION,
         )
         prompt = (
-            "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
-            "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
+            "Aşağıdaki haberi Türkçe olarak kapsamlı bir podcast özeti olarak hazırla. "
+            "Haberin tüm önemli detaylarını, bağlamını ve sonuçlarını kapsayan 8-12 cümlelik akıcı bir anlatı oluştur. "
+            "Podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
             "madde işareti veya başlık kullanma:\n\n"
             f"Başlık: {title}\n\nİçerik: {content[:3000]}"
         )

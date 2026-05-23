@@ -36,6 +36,9 @@ function Home() {
   const [relatedNews, setRelatedNews] = useState([]);
   const [trendingNews, setTrendingNews] = useState([]);
   const [myFeedback, setMyFeedback] = useState(null);
+  const [translatedSummary, setTranslatedSummary] = useState(null);
+  const [translationLang, setTranslationLang] = useState('tr');
+  const [isTranslating, setIsTranslating] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -289,6 +292,9 @@ function Home() {
     try {
       setRelatedNews([]);
       setMyFeedback(null);
+      setTranslatedSummary(null);
+      setTranslationLang('tr');
+      setIsTranslating(false);
       const [detailResponse, podRes, bookmarkRes, relatedRes, feedbackRes] = await Promise.all([
         fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`),
         fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`),
@@ -328,6 +334,21 @@ function Home() {
         showToast(rating === 'up' ? 'Teşekkürler! 👍' : 'Geri bildirim alındı 👎', 'success');
       }
     } catch (_) {}
+  };
+
+  const handleTranslate = async (lang) => {
+    if (lang === 'tr') { setTranslationLang('tr'); return; }
+    if (translationLang === lang && translatedSummary) return;
+    setTranslationLang(lang);
+    setIsTranslating(true);
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${selectedNews.id}/translate?lang=${lang}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTranslatedSummary(data.translated);
+      }
+    } catch (_) { showToast('Çeviri başarısız.', 'error'); setTranslationLang('tr'); }
+    finally { setIsTranslating(false); }
   };
 
   const handleGeneratePodcast = async () => {
@@ -487,24 +508,29 @@ function Home() {
 
             {selectedNews.summary && (
               <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '18px', padding: '1.5rem 1.75rem', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>AI Özet</span>
-                    <p style={{ color: '#cbd5e1', lineHeight: '1.8', fontSize: '1rem', margin: '10px 0 0' }}>{selectedNews.summary}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginTop: '2px' }}>
-                    <button
-                      onClick={() => handleFeedback(selectedNews.id, 'up')}
-                      title="Özet güzel"
-                      style={{ background: myFeedback === 'up' ? 'rgba(16,185,129,0.2)' : 'transparent', border: `1px solid ${myFeedback === 'up' ? '#10b981' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'up' ? '#10b981' : '#64748b', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}
-                    >👍</button>
-                    <button
-                      onClick={() => handleFeedback(selectedNews.id, 'down')}
-                      title="Özet yetersiz"
-                      style={{ background: myFeedback === 'down' ? 'rgba(239,68,68,0.15)' : 'transparent', border: `1px solid ${myFeedback === 'down' ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'down' ? '#ef4444' : '#64748b', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}
-                    >👎</button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>AI Özet</span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {/* Dil toggle */}
+                    <div style={{ display: 'flex', background: 'rgba(2,6,23,0.5)', borderRadius: '10px', padding: '3px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      {[{ code: 'tr', label: '🇹🇷 TR' }, { code: 'en', label: '🇬🇧 EN' }].map(({ code, label }) => (
+                        <button
+                          key={code}
+                          onClick={() => handleTranslate(code)}
+                          disabled={isTranslating}
+                          style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: isTranslating ? 'not-allowed' : 'pointer', fontSize: '0.65rem', fontWeight: '800', transition: '0.2s', background: translationLang === code ? 'rgba(99,102,241,0.25)' : 'transparent', color: translationLang === code ? '#818cf8' : '#475569' }}
+                        >{label}</button>
+                      ))}
+                    </div>
+                    {/* Feedback */}
+                    <button onClick={() => handleFeedback(selectedNews.id, 'up')} title="Özet güzel" style={{ background: myFeedback === 'up' ? 'rgba(16,185,129,0.2)' : 'transparent', border: `1px solid ${myFeedback === 'up' ? '#10b981' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'up' ? '#10b981' : '#64748b', padding: '6px 10px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}>👍</button>
+                    <button onClick={() => handleFeedback(selectedNews.id, 'down')} title="Özet yetersiz" style={{ background: myFeedback === 'down' ? 'rgba(239,68,68,0.15)' : 'transparent', border: `1px solid ${myFeedback === 'down' ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'down' ? '#ef4444' : '#64748b', padding: '6px 10px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}>👎</button>
                   </div>
                 </div>
+                {isTranslating
+                  ? <p style={{ color: '#475569', lineHeight: '1.8', fontSize: '1rem', margin: 0 }}>Çeviriliyor...</p>
+                  : <p style={{ color: '#cbd5e1', lineHeight: '1.8', fontSize: '1rem', margin: 0 }}>{translationLang === 'en' && translatedSummary ? translatedSummary : selectedNews.summary}</p>
+                }
               </div>
             )}
 

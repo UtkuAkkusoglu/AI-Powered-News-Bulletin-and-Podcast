@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing_extensions import Optional
 import schemas, models
 from dependencies import db_dependency, user_dependency
-from utils import get_embedding
+from utils import get_embedding, _genai_client
 from worker import run_scraper_task
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
@@ -250,6 +250,23 @@ def get_my_feedback(news_id: int, db: db_dependency, current_user: user_dependen
         models.SummaryFeedback.user_id == current_user.id,
     ).first()
     return {"rating": fb.rating if fb else None}
+
+
+@router.get("/{news_id}/translate")
+def translate_news(news_id: int, lang: str = "en", db: db_dependency, current_user: user_dependency):
+    if lang not in ("en", "tr"):
+        raise HTTPException(status_code=400, detail="lang must be 'en' or 'tr'")
+    news = db.query(models.News).filter(models.News.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="Haber bulunamadı.")
+    text = news.summary or news.content[:3000]
+    target = "İngilizce" if lang == "en" else "Türkçe"
+    client = _genai_client()
+    response = client.models.generate_content(
+        model="publishers/google/models/gemini-2.5-flash",
+        contents=f"Aşağıdaki metni {target} diline çevir. Yalnızca çeviriyi döndür:\n\n{text}",
+    )
+    return {"translated": response.text.strip(), "lang": lang}
 
 
 @router.get("/refresh/status")
