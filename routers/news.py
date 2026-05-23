@@ -149,6 +149,11 @@ def track_news_click(news_id: int, current_user: user_dependency, db: db_depende
 
 @router.post("/refresh", status_code=status.HTTP_202_ACCEPTED)
 def refresh_news(current_user: user_dependency):
+    # Scraper başlamadan önce Redis flag'ini biz set ediyoruz.
+    # Böylece frontend ilk polling'de zaten "processing" görür, race condition olmaz.
+    import redis as _redis
+    from config import settings as _cfg
+    _redis.from_url(_cfg.CELERY_BROKER_URL).set("scraper_running", "1", ex=3600)
     run_scraper_task.delay()
     return {"status": "processing"}
 
@@ -168,10 +173,12 @@ def get_news_detail(news_id: int, db: db_dependency, current_user: user_dependen
 @router.get("/refresh/status")
 def get_refresh_status():
     """
-    - Frontend'in körü körüne beklemek yerine, arka plandaki scraper'ın 
-      aktif olarak çalışıp çalışmadığını (is_currently_scraping) gerçek zamanlı sorguladığı yer.
+    - Scraper worker ayrı bir proseste çalıştığı için is_currently_scraping global'i
+      API prosesinde her zaman False görünürdü. Düzeltme: Redis shared flag kullanıyoruz.
+      POST /refresh flag'i set eder, scraper bitince finally bloğu flag'i siler.
     """
-    from scraper import is_currently_scraping
-    # Eğer is_currently_scraping True ise iş devam ediyordur (processing), False ise bitmiştir (idle)
-    status_str = "processing" if is_currently_scraping else "idle"
-    return {"status": status_str}
+    import redis as _redis
+    from config import settings as _cfg
+    r = _redis.from_url(_cfg.CELERY_BROKER_URL)
+    is_running = r.exists("scraper_running")
+    return {"status": "processing" if is_running else "idle"}

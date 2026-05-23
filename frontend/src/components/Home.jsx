@@ -154,34 +154,34 @@ function Home() {
     // 🔄 GERÇEK ZAMANLI TASK TRACKING MECHANISM
     const poll = setInterval(async () => {
       try {
+        // Ref'ten oku: interval callback stale closure'dan etkilenmez, her tick'te güncel değeri alır
+        const currentCatId = activeCategoryIdRef.current;
+
         // 🎯 Eğer kullanıcı o esnada başka kategoriye zıpladıysa, bu döngü kendini imha etsin!
-        if (currentSnapshotCategoryId !== activeCategoryId) {
+        if (currentSnapshotCategoryId !== currentCatId) {
           clearInterval(poll);
           return;
         }
 
-        // 📡 ÖNCE SİHİRLİ DOKUNUŞ: Backend'deki scraper'ın gerçek durumunu sorgula reis!
+        // 📡 Redis flag'i üzerinden scraper'ın gerçek durumunu sorgula
         const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
         if (statusRes.ok) {
           const statusData = await statusRes.json();
-          
-          // Eğer backend tarafında kilit açıldıysa ve "idle" durumuna düştüyse...
+
+          // Eğer Redis flag'i silindiyse scraper bitti demektir
           if (statusData.status === "idle") {
             clearInterval(poll);
             setRefreshing(false);
-            
-            // 🎯 Doğrudan ve sadece EN SON aktif olan kategorinin haberlerini çek, eskiyi araya hiç karıştırma!
             fetchNews(searchTerm, 1, pageSize, activeCategoryIdRef.current);
-            
             showToast("Gündem başarıyla güncellendi!", "success");
-            return; // Döngüden çık, aşağıdaki fetch'e hiç uğrama reis!
+            return;
           }
         }
 
-        // 📊 Eğer iş hala devam ediyorsa (processing), o zaman o anki kategori listesini canlı güncelle
+        // 📊 Scraper hâlâ çalışıyorsa o anki kategoriyi canlı güncelle (ref'ten oku)
         const params = new URLSearchParams({ page: 1, size: pageSize });
-        if (activeCategoryId === 0) {} 
-        else if (activeCategoryId) params.set('category_id', activeCategoryId);
+        if (currentCatId === 0) {}
+        else if (currentCatId) params.set('category_id', currentCatId);
         else params.set('interests_only', 'true');
         
         const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/?${params}`);

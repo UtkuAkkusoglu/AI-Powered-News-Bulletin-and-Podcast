@@ -175,7 +175,13 @@ function Auth() {
             />
           </div>
           
-          <button type="submit" style={styles.button}>
+          <button
+            type="submit"
+            style={styles.button}
+            onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)'; e.currentTarget.style.boxShadow = 'none'; }}
+            onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(99, 102, 241, 0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(99, 102, 241, 0.3)'; }}
+          >
             {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
           </button>
         </form>

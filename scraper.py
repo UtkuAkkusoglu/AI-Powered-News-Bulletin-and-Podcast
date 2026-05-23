@@ -314,8 +314,15 @@ def scrape_to_db(limit: int = 0) -> dict:
         print(f"[!] Hata: {e}")
         raise
     finally:
-        is_currently_scraping = False    # hata verse de vermese de kiidi açmamız lazım
+        is_currently_scraping = False    # hata verse de vermese de kilidi açmamız lazım
         db.close()
+        # Redis flag'ini temizle (API prosesi bunu okuyarak scraper'ın bittiğini anlar)
+        try:
+            import redis as _redis
+            from config import settings as _cfg
+            _redis.from_url(_cfg.CELERY_BROKER_URL).delete("scraper_running")
+        except Exception as _e:
+            print(f"[System] Redis flag temizlenemedi: {_e}")
         print("[System] Kilit açıldı, yeni isteklere hazır.")
 
 def main():
