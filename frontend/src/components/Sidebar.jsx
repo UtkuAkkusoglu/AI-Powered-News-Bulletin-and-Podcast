@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 
-function Sidebar() {
+function Sidebar({ isCollapsed = false, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -41,13 +41,15 @@ function Sidebar() {
 
   const styles = {
     sidebar: {
-      width: '280px', height: '100vh', position: 'fixed', left: 0, top: 0,
+      width: isCollapsed ? '72px' : '280px', height: '100vh', position: 'fixed', left: 0, top: 0,
       backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRight: '1px solid rgba(255,255,255,0.05)',
-      padding: '2rem 1.5rem', backdropFilter: 'blur(20px)', zIndex: 1000,
+      padding: isCollapsed ? '2rem 0.75rem' : '2rem 1.5rem',
+      backdropFilter: 'blur(20px)', zIndex: 1000,
       display: 'flex', flexDirection: 'column',
       boxSizing: 'border-box',
       transform: isMobile ? (isMobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
-      transition: 'transform 0.3s ease',
+      transition: 'transform 0.3s ease, width 0.3s ease, padding 0.3s ease',
+      overflow: 'visible',
     },
     greetingBox: {
       background: 'rgba(255, 255, 255, 0.03)', padding: '14px 18px', borderRadius: '16px',
@@ -59,15 +61,19 @@ function Sidebar() {
       marginBottom: '3rem', display: 'block', paddingLeft: '0.5rem'
     },
     navItem: (isActive) => ({
-      display: 'flex', alignItems: 'center', gap: '15px', padding: '14px 20px',
+      display: 'flex', alignItems: 'center', gap: isCollapsed ? 0 : '15px',
+      padding: isCollapsed ? '14px 0' : '14px 20px',
+      justifyContent: isCollapsed ? 'center' : 'flex-start',
       borderRadius: '16px', color: isActive ? 'white' : '#94a3b8',
       backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
       textDecoration: 'none', fontWeight: '700', marginBottom: '10px',
       transition: 'all 0.3s ease', border: isActive ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid transparent'
     }),
     accountBtn: {
-      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '16px 20px', borderRadius: '16px', background: 'rgba(99, 102, 241, 0.1)',
+      width: '100%', display: 'flex', alignItems: 'center',
+      justifyContent: isCollapsed ? 'center' : 'space-between',
+      padding: isCollapsed ? '16px 0' : '16px 20px',
+      borderRadius: '16px', background: 'rgba(99, 102, 241, 0.1)',
       color: 'white', border: '1px solid rgba(99, 102, 241, 0.3)', cursor: 'pointer',
       fontWeight: 'bold', transition: 'all 0.3s ease'
     },
@@ -104,17 +110,31 @@ function Sidebar() {
         {isMobile && (
           <button onClick={() => setIsMobileOpen(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer', zIndex: 1 }}>✕</button>
         )}
-        <div style={styles.greetingBox}>
-          <span style={{ fontSize: '1.2rem' }}>👋</span>
-          <span>Merhaba, <span style={{ color: '#818cf8', fontWeight: '800' }}>{username}</span></span>
-        </div>
+        {!isMobile && (
+          <button
+            onClick={onToggle}
+            title={isCollapsed ? 'Genişlet' : 'Küçült'}
+            style={{ position: 'absolute', top: '1.5rem', right: '-12px', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#818cf8', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001, boxShadow: '0 2px 8px rgba(0,0,0,0.4)', transition: 'all 0.2s' }}
+          >
+            {isCollapsed ? '›' : '‹'}
+          </button>
+        )}
+        {!isCollapsed && (
+          <div style={styles.greetingBox}>
+            <span style={{ fontSize: '1.2rem' }}>👋</span>
+            <span>Merhaba, <span style={{ color: '#818cf8', fontWeight: '800' }}>{username}</span></span>
+          </div>
+        )}
 
-        <Link to="/home" style={styles.logo}>🌐 NewsFlow</Link>
+        <Link to="/home" style={{ ...styles.logo, textAlign: isCollapsed ? 'center' : 'left', paddingLeft: isCollapsed ? 0 : '0.5rem', marginBottom: isCollapsed ? '1.5rem' : '3rem' }}>
+          🌐{!isCollapsed && ' NewsFlow'}
+        </Link>
         
         <nav style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
           {menuItems.map(item => (
-            <Link key={item.path} to={item.path} onClick={() => isMobile && setIsMobileOpen(false)} style={styles.navItem(location.pathname === item.path)}>
-              <span style={{ fontSize: '1.3rem' }}>{item.icon}</span> {item.name}
+            <Link key={item.path} to={item.path} onClick={() => isMobile && setIsMobileOpen(false)} title={isCollapsed ? item.name : ''} style={styles.navItem(location.pathname === item.path)}>
+              <span style={{ fontSize: '1.3rem' }}>{item.icon}</span>
+              {!isCollapsed && item.name}
             </Link>
           ))}
         </nav>
@@ -130,11 +150,17 @@ function Sidebar() {
               </button>
             </div>
           )}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={styles.accountBtn}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>👤</span> Hesabım
-            </div>
-            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isMenuOpen ? '▼' : '▲'}</span>
+          <button onClick={() => isCollapsed ? onToggle() : setIsMenuOpen(!isMenuOpen)} title={isCollapsed ? 'Hesabım' : ''} style={styles.accountBtn}>
+            {isCollapsed ? (
+              <span style={{ fontSize: '1.2rem' }}>👤</span>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>👤</span> Hesabım
+                </div>
+                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isMenuOpen ? '▼' : '▲'}</span>
+              </>
+            )}
           </button>
         </div>
       </aside>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import { useWindowSize } from './Utils/useWindowSize';
@@ -8,8 +9,9 @@ import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 
 function App() {
-  const sidebarWidth = '280px';
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { isMobile } = useWindowSize();
+  const sidebarWidth = isSidebarCollapsed ? '72px' : '280px';
 
   return (
     <BrowserRouter>
@@ -23,10 +25,11 @@ function App() {
             position: 'relative', top: 0, left: 0, margin: 0, padding: 0, 
             display: 'flex', overflowX: 'hidden'
           }}>
-            <Sidebar /> 
+            <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(p => !p)} />
             
             <div style={{ 
               marginLeft: isMobile ? 0 : sidebarWidth,
+              transition: 'margin-left 0.3s ease',
               flex: 1,
               display: 'flex', flexDirection: 'column', minHeight: '100vh' ,
               minWidth: 0 // Flexbox taşmalarını engellemek için kritik
