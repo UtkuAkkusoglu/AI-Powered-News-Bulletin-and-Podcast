@@ -51,23 +51,13 @@ function RssReader() {
         if (res.ok) {
           const data = await res.json();
           clearInterval(interval);
-          await fetchAudio(data.podcast_id);
+          setAudioUrl(data.audio_url);
+          setPodcastStatus('ready');
         }
       } catch {}
     }, 2000);
     return () => clearInterval(interval);
   }, [podcastStatus, podcastPollTitle]);
-
-  const fetchAudio = async (id) => {
-    try {
-      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/${id}/audio`);
-      setAudioUrl(res.url);
-      setPodcastStatus('ready');
-    } catch {
-      showToast('Ses yüklenemedi.', 'error');
-      setPodcastStatus(null);
-    }
-  };
 
   const fetchLists = async () => {
     setLoadingLists(true);
@@ -214,7 +204,8 @@ function RssReader() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (data.status === 'exists') {
-        await fetchAudio(data.podcast_id);
+        setAudioUrl(data.audio_url);
+        setPodcastStatus('ready');
       } else {
         setPodcastStatus('processing');
         setPodcastPollTitle(selectedArticle.title);

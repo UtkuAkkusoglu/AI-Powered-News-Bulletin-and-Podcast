@@ -188,7 +188,7 @@ def create_rss_podcast(body: RssPodcastCreate, db: db_dependency, current_user: 
         models.Podcast.news_id.is_(None),
     ).first()
     if existing:
-        return {"status": "exists", "podcast_id": existing.id}
+        return {"status": "exists", "podcast_id": existing.id, "audio_url": existing.audio_url}
 
     process_rss_article_tts_task.delay(body.title, body.content, current_user.id)
     return {"status": "processing"}
@@ -203,4 +203,4 @@ def check_rss_podcast(title: str, db: db_dependency, current_user: user_dependen
     ).first()
     if not podcast:
         raise HTTPException(status_code=404, detail="Podcast henüz hazır değil.")
-    return {"podcast_id": podcast.id}
+    return {"podcast_id": podcast.id, "audio_url": podcast.audio_url}

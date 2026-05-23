@@ -413,27 +413,7 @@ function Home() {
       </div>
 
       {trendingNews.length > 0 && (
-        <div style={{ marginBottom: '2.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Şu an Trend</span>
-          </div>
-          <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none' }}>
-            {trendingNews.map(n => (
-              <div
-                key={n.id}
-                onClick={() => handleNewsClick(n.id)}
-                style={{ flexShrink: 0, width: isMobile ? '240px' : '280px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '18px', padding: '1.2rem 1.4rem', cursor: 'pointer', transition: '0.2s' }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.35)'; e.currentTarget.style.background = 'rgba(245,158,11,0.08)'; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.15)'; e.currentTarget.style.background = 'rgba(245,158,11,0.05)'; }}
-              >
-                {n.category?.name && (
-                  <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase' }}>{n.category.name}</span>
-                )}
-                <p style={{ color: 'white', fontWeight: '700', fontSize: '0.9rem', margin: '8px 0 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.title}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <TrendingStrip trendingNews={trendingNews} onNewsClick={handleNewsClick} isMobile={isMobile} />
       )}
 
       {loading ? (
@@ -606,6 +586,58 @@ function Home() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TrendingStrip({ trendingNews, onNewsClick, isMobile }) {
+  const scrollRef = useRef(null);
+
+  const scroll = (dir) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  };
+
+  const arrowBtn = {
+    background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(245,158,11,0.2)',
+    color: '#f59e0b', width: '34px', height: '34px', borderRadius: '50%',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '0.9rem', flexShrink: 0, transition: '0.2s',
+  };
+
+  return (
+    <div style={{ marginBottom: '2.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '1px', flex: 1 }}>🔥 Şu an Trend</span>
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button style={arrowBtn} onClick={() => scroll(-1)}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(245,158,11,0.1)'}
+              onMouseOut={e => e.currentTarget.style.background = 'rgba(15,23,42,0.9)'}
+            >‹</button>
+            <button style={arrowBtn} onClick={() => scroll(1)}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(245,158,11,0.1)'}
+              onMouseOut={e => e.currentTarget.style.background = 'rgba(15,23,42,0.9)'}
+            >›</button>
+          </div>
+        )}
+      </div>
+      <div ref={scrollRef} style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none' }}>
+        {trendingNews.map(n => (
+          <div
+            key={n.id}
+            onClick={() => onNewsClick(n.id)}
+            style={{ flexShrink: 0, width: isMobile ? '240px' : '280px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '18px', padding: '1.2rem 1.4rem', cursor: 'pointer', transition: '0.2s' }}
+            onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.35)'; e.currentTarget.style.background = 'rgba(245,158,11,0.08)'; }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.15)'; e.currentTarget.style.background = 'rgba(245,158,11,0.05)'; }}
+          >
+            {n.category?.name && (
+              <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase' }}>{n.category.name}</span>
+            )}
+            <p style={{ color: 'white', fontWeight: '700', fontSize: '0.9rem', margin: '8px 0 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.title}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
