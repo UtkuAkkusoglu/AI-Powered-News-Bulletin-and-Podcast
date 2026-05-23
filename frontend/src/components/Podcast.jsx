@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
+import AudioPlayer from './AudioPlayer';
 
 function Podcast() {
   const [podcasts, setPodcasts] = useState([]);
@@ -182,19 +183,8 @@ function Podcast() {
                     </div>
                   </div>
 
-                  {/* 🔥 ALT KISIM: Yayılan Modern Audio Player */}
-                  <div style={{ width: '100%', marginTop: '5px' }}>
-                    <audio 
-                      controls 
-                      src={pod.audio_url} 
-                      style={{ 
-                        height: '40px', 
-                        width: '100%', // Tüm genişliği kaplaması için %100 yapıldı
-                        filter: 'invert(100%) brightness(1.5)',
-                        borderRadius: '12px'
-                      }} 
-                    />
-                  </div>
+                  {/* Custom Audio Player */}
+                  <AudioPlayer src={pod.audio_url} isMobile={isMobile} />
 
                 </div>
               ))
