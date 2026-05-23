@@ -13,6 +13,9 @@ function Settings() {
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
   const [isInterestsUpdating, setIsInterestsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [rssUrl, setRssUrl] = useState('');
+  const [rssCategoryId, setRssCategoryId] = useState('');
+  const [isRssSubmitting, setIsRssSubmitting] = useState(false);
   
   // Şifre State'leri
   const [passwordData, setPasswordData] = useState({
@@ -106,6 +109,27 @@ function Settings() {
 
   const toggleCategory = (id) => {
     setSelectedInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleRssSubmit = async (e) => {
+    e.preventDefault();
+    if (!rssUrl.trim()) return;
+    setIsRssSubmitting(true);
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/rss/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ url: rssUrl, category_id: rssCategoryId ? parseInt(rssCategoryId) : null }),
+      });
+      if (res.ok) {
+        showToast("RSS kaynağınız incelemeye alındı! 🎉", "success");
+        setRssUrl('');
+        setRssCategoryId('');
+      } else {
+        const err = await res.json();
+        showToast(err.detail || "Gönderilemedi.", "error");
+      }
+    } catch (_) { showToast("Bağlantı hatası.", "error"); }
+    finally { setIsRssSubmitting(false); }
   };
 
   // --- HESAP SİLME İŞLEMİ (YENİ EKLENDİ) ---
@@ -216,6 +240,39 @@ function Settings() {
             >
               {isInterestsUpdating ? 'Kaydediliyor...' : 'Kategorileri Kaydet'}
             </button>
+          </div>
+
+          {/* RSS KAYNAK ÖNERİ */}
+          <div style={{ ...styles.section, gridColumn: isMobile ? 'auto' : 'span 2', alignItems: 'flex-start', textAlign: 'left' }}>
+            <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.6rem' }}>📡 RSS Kaynak Öner</h3>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '1.75rem', lineHeight: '1.5' }}>
+              Topluluğun takip etmesini istediğin bir haber kaynağı var mı? URL'sini paylaş, ekibimiz incelesin.
+            </p>
+            <form onSubmit={handleRssSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', width: '100%' }}>
+              <input
+                type="url"
+                placeholder="https://example.com/rss.xml"
+                required
+                value={rssUrl}
+                onChange={e => setRssUrl(e.target.value)}
+                style={{ ...styles.input, maxWidth: 'none', flex: 2, minWidth: '220px', marginBottom: 0 }}
+              />
+              <select
+                value={rssCategoryId}
+                onChange={e => setRssCategoryId(e.target.value)}
+                style={{ ...styles.input, maxWidth: 'none', flex: 1, minWidth: '140px', marginBottom: 0, cursor: 'pointer' }}
+              >
+                <option value="">Kategori (isteğe bağlı)</option>
+                {allCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button
+                type="submit"
+                disabled={isRssSubmitting}
+                style={{ ...styles.button, maxWidth: 'none', flex: '0 0 auto', padding: '14px 28px', marginBottom: 0 }}
+              >
+                {isRssSubmitting ? 'Gönderiliyor...' : 'Öner'}
+              </button>
+            </form>
           </div>
 
           {/* YENİ: TEHLİKE BÖLGESİ (HESAP SİLME) */}

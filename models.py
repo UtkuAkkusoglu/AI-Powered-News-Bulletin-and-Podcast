@@ -87,7 +87,7 @@ class RefreshToken(Base):
 
 class UserClick(Base):
     __tablename__ = "user_clicks"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
@@ -95,6 +95,43 @@ class UserClick(Base):
     last_click_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_suggested = Column(Boolean, default=False)
 
-    # İlişkiler
     user = relationship("User")
     category = relationship("NewsCategory")
+
+class CommunityRssSource(Base):
+    __tablename__ = "community_rss_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, unique=True, nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    submitted_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String, default="pending")  # "pending", "approved", "rejected"
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    category = relationship("NewsCategory")
+    submitter = relationship("User")
+
+
+class SummaryFeedback(Base):
+    __tablename__ = "summary_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    news_id = Column(Integer, ForeignKey("news.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    rating = Column(String, nullable=False)  # "up" veya "down"
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    news = relationship("News")
+    user = relationship("User")
+
+
+class UserBookmark(Base):
+    __tablename__ = "user_bookmarks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    news_id = Column(Integer, ForeignKey("news.id", ondelete="CASCADE"), nullable=False)
+    saved_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+    news = relationship("News")

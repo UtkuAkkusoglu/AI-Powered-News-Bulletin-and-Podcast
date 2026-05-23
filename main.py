@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from routers import auth, news, podcast, users, categories  # Routers klasöründen çekiyoruz
+from routers import auth, news, podcast, users, categories, bookmarks, feed, rss  # Routers klasöründen çekiyoruz
 from database import engine, SessionLocal
 import models
 from seed_data import seed_categories
@@ -115,6 +115,9 @@ app.include_router(news.router)
 app.include_router(podcast.router)
 app.include_router(users.router)
 app.include_router(categories.router)
+app.include_router(bookmarks.router)
+app.include_router(feed.router)
+app.include_router(rss.router)
 
 @app.get("/")
 def root():

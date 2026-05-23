@@ -36,7 +36,8 @@ function Sidebar({ isCollapsed = false, onToggle }) {
 
   const menuItems = [
     { name: 'Haber Akışı', path: '/home', icon: '🏠' },
-    { name: 'Podcastlerim', path: '/podcasts', icon: '🎙️' }
+    { name: 'Podcastlerim', path: '/podcasts', icon: '🎙️' },
+    { name: 'Kaydedilenler', path: '/bookmarks', icon: '🔖' },
   ];
 
   const styles = {

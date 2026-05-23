@@ -39,6 +39,10 @@ function Home() {
   // 🛡️ Havada giden büyük POST yenileme isteğini kontrol etmek için yeni Ref
   const refreshAbortControllerRef = useRef(null);
 
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [relatedNews, setRelatedNews] = useState([]);
+  const [trendingNews, setTrendingNews] = useState([]);
+  const [myFeedback, setMyFeedback] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -99,7 +103,14 @@ function Home() {
         }
       } catch (_) {}
     };
+    const loadTrending = async () => {
+      try {
+        const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/trending`);
+        if (res.ok) setTrendingNews(await res.json());
+      } catch (_) {}
+    };
     loadUser();
+    loadTrending();
   }, []);
 
   // 🔄 Kategori veya sayfa değiştiğinde eski havada kalan istekleri Abort et
@@ -179,6 +190,43 @@ function Home() {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+  };
+
+  const readingTime = (text) => {
+    if (!text) return null;
+    const words = text.trim().split(/\s+/).length;
+    return Math.ceil(words / 200);
+  };
+
+  const handleToggleBookmark = async (newsId) => {
+    const isBookmarked = bookmarkedIds.has(newsId);
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/bookmarks/${newsId}`, {
+        method: isBookmarked ? 'DELETE' : 'POST',
+      });
+      if (res.ok) {
+        setBookmarkedIds(prev => {
+          const next = new Set(prev);
+          isBookmarked ? next.delete(newsId) : next.add(newsId);
+          return next;
+        });
+        showToast(isBookmarked ? 'Kaydedilenlerden kaldırıldı.' : 'Kaydedildi! 🔖', 'success');
+      }
+    } catch (_) { showToast('İşlem başarısız.', 'error'); }
+  };
+
+  const handleShare = async (news) => {
+    const shareData = { title: news.title, text: news.summary || news.title, url: news.source_url || window.location.href };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (_) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareData.url);
+        showToast("Bağlantı panoya kopyalandı!", "success");
+      } catch (_) {
+        showToast("Kopyalanamadı.", "error");
+      }
+    }
   };
   
   const handleCategoryChange = (catId) => { 
@@ -305,28 +353,52 @@ function Home() {
   };
 
   const handleNewsClick = async (newsId) => {
-    setPodcastStatus('idle'); 
-    setPodcastId(null); 
-    setAudioUrl(null); 
-    stopPolling(); 
+    setPodcastStatus('idle');
+    setPodcastId(null);
+    setAudioUrl(null);
+    stopPolling();
     try {
-      const detailResponse = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`);
-      if (detailResponse.ok) {
-        const detailData = await detailResponse.json();
-        setSelectedNews(detailData);
-      }
-      
-      const podRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
+      setRelatedNews([]);
+      setMyFeedback(null);
+      const [detailResponse, podRes, bookmarkRes, relatedRes, feedbackRes] = await Promise.all([
+        fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}`),
+        fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`),
+        fetchWithAuth(`${import.meta.env.VITE_API_URL}/bookmarks/check/${newsId}`),
+        fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/related`),
+        fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/feedback/mine`),
+      ]);
+
+      if (detailResponse.ok) setSelectedNews(await detailResponse.json());
+
       if (podRes.ok) {
         const podData = await podRes.json();
-        setPodcastId(podData.id); 
-        
-        // 🔥 ÇÖZÜM: Önceden üretilmişse direkt veritabanındaki linki kullan
-        setAudioUrl(podData.audio_url); 
-        
+        setPodcastId(podData.id);
+        setAudioUrl(podData.audio_url);
         setPodcastStatus('ready');
       }
+
+      if (bookmarkRes.ok) {
+        const bData = await bookmarkRes.json();
+        setBookmarkedIds(prev => {
+          const next = new Set(prev);
+          bData.bookmarked ? next.add(newsId) : next.delete(newsId);
+          return next;
+        });
+      }
+
+      if (relatedRes.ok) setRelatedNews(await relatedRes.json());
+      if (feedbackRes.ok) { const fd = await feedbackRes.json(); setMyFeedback(fd.rating); }
     } catch (error) {}
+  };
+
+  const handleFeedback = async (newsId, rating) => {
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/feedback?rating=${rating}`, { method: 'POST' });
+      if (res.ok) {
+        setMyFeedback(prev => prev === rating ? null : rating);
+        showToast(rating === 'up' ? 'Teşekkürler! 👍' : 'Geri bildirim alındı 👎', 'success');
+      }
+    } catch (_) {}
   };
 
   const handleGeneratePodcast = async () => {
@@ -421,6 +493,30 @@ function Home() {
         ))}
       </div>
 
+      {trendingNews.length > 0 && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Şu an Trend</span>
+          </div>
+          <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none' }}>
+            {trendingNews.map(n => (
+              <div
+                key={n.id}
+                onClick={() => handleNewsClick(n.id)}
+                style={{ flexShrink: 0, width: isMobile ? '240px' : '280px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '18px', padding: '1.2rem 1.4rem', cursor: 'pointer', transition: '0.2s' }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.35)'; e.currentTarget.style.background = 'rgba(245,158,11,0.08)'; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.15)'; e.currentTarget.style.background = 'rgba(245,158,11,0.05)'; }}
+              >
+                {n.category?.name && (
+                  <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase' }}>{n.category.name}</span>
+                )}
+                <p style={{ color: 'white', fontWeight: '700', fontSize: '0.9rem', margin: '8px 0 0', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '5rem' }}>Haberler derleniyor...</p>
       ) : (
@@ -428,7 +524,16 @@ function Home() {
           <div style={styles.bentoGrid}>
             {newsList.map((news, index) => (
               <div key={news.id} onClick={() => handleNewsClick(news.id)} style={{ ...styles.newsCard, gridColumn: index === 0 && !isMobile ? 'span 2' : 'span 1' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase' }}>Manşet</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase' }}>
+                    {news.category?.name || 'Haber'}
+                  </span>
+                  {readingTime(news.summary || news.content) && (
+                    <span style={{ fontSize: '0.7rem', color: '#475569' }}>
+                      · {readingTime(news.summary || news.content)} dk okuma
+                    </span>
+                  )}
+                </div>
                 <h3 style={{ margin: '15px 0', fontSize: index === 0 && !isMobile ? '2.2rem' : '1.5rem', color: 'white', fontWeight: '800' }}>{news.title}</h3>
                 <p style={{ color: '#94a3b8', lineHeight: '1.6' }}>{news.summary || "Detaylar yolda..."}</p>
               </div>
@@ -553,18 +658,107 @@ function Home() {
 
       {selectedNews && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(16px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
-          <div style={{ background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.1)', padding: '4rem', borderRadius: '40px', maxWidth: '900px', width: '90%', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
+          <div style={{ background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '2rem 1.5rem' : '4rem', borderRadius: '40px', maxWidth: '900px', width: '90%', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
             <button onClick={() => { setSelectedNews(null); }} style={{ position: 'absolute', top: '35px', right: '35px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '2.2rem', cursor: 'pointer' }}>✖</button>
-            <h2 style={{ fontSize: '2.6rem', fontWeight: '900', color: 'white', marginBottom: '30px' }}>{selectedNews.title}</h2>
-            <div style={{ lineHeight: '1.9', color: '#cbd5e1', fontSize: '1.25rem', whiteSpace: 'pre-wrap' }}>{selectedNews.content}</div>
-            
-            <div style={{ marginTop: '3rem' }}>
-              {podcastStatus === 'idle' && <button onClick={handleGeneratePodcast} style={{ padding: '16px 36px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.4)' }}>🎙 Podcast Oluştur</button>}
-              {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold' }}>🎧 Hazırlanıyor...</p>}
-              
-              {/* MODAL İÇİNDEKİ İKİNCİ OYNATICI TAMAMEN SİLİNDİ! ARTIK SADECE YÜZER OYNATICI VAR */}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              {selectedNews.category?.name && (
+                <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase' }}>{selectedNews.category.name}</span>
+              )}
+              {readingTime(selectedNews.content) && (
+                <span style={{ fontSize: '0.75rem', color: '#475569' }}>· {readingTime(selectedNews.content)} dk okuma</span>
+              )}
             </div>
-            
+
+            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.6rem', fontWeight: '900', color: 'white', marginBottom: '30px', paddingRight: '3rem' }}>{selectedNews.title}</h2>
+
+            {selectedNews.summary && (
+              <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '18px', padding: '1.5rem 1.75rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>AI Özet</span>
+                    <p style={{ color: '#cbd5e1', lineHeight: '1.8', fontSize: '1rem', margin: '10px 0 0' }}>{selectedNews.summary}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginTop: '2px' }}>
+                    <button
+                      onClick={() => handleFeedback(selectedNews.id, 'up')}
+                      title="Özet güzel"
+                      style={{ background: myFeedback === 'up' ? 'rgba(16,185,129,0.2)' : 'transparent', border: `1px solid ${myFeedback === 'up' ? '#10b981' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'up' ? '#10b981' : '#64748b', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}
+                    >👍</button>
+                    <button
+                      onClick={() => handleFeedback(selectedNews.id, 'down')}
+                      title="Özet yetersiz"
+                      style={{ background: myFeedback === 'down' ? 'rgba(239,68,68,0.15)' : 'transparent', border: `1px solid ${myFeedback === 'down' ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, color: myFeedback === 'down' ? '#ef4444' : '#64748b', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '1rem', transition: '0.2s' }}
+                    >👎</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ lineHeight: '1.9', color: '#cbd5e1', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>{selectedNews.content}</div>
+
+            <div style={{ marginTop: '3rem', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {podcastStatus === 'idle' && (
+                <button onClick={handleGeneratePodcast} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.4)' }}>
+                  🎙 Podcast Oluştur
+                </button>
+              )}
+              {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', margin: 0 }}>🎧 Hazırlanıyor...</p>}
+
+              <button
+                onClick={() => handleToggleBookmark(selectedNews.id)}
+                style={{ padding: '14px 22px', borderRadius: '16px', border: `1px solid ${bookmarkedIds.has(selectedNews.id) ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)'}`, background: bookmarkedIds.has(selectedNews.id) ? 'rgba(99,102,241,0.1)' : 'transparent', color: bookmarkedIds.has(selectedNews.id) ? '#818cf8' : '#94a3b8', fontWeight: '600', cursor: 'pointer', transition: '0.2s' }}
+              >
+                {bookmarkedIds.has(selectedNews.id) ? '🔖 Kaydedildi' : '🔖 Kaydet'}
+              </button>
+
+              <button
+                onClick={() => handleShare(selectedNews)}
+                style={{ padding: '14px 22px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s' }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#818cf8'; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+              >
+                {navigator.share ? '↑ Paylaş' : '🔗 Bağlantıyı Kopyala'}
+              </button>
+
+              {selectedNews.source_url && (
+                <a
+                  href={selectedNews.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ padding: '14px 22px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', transition: '0.2s' }}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#818cf8'; }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+                >
+                  Kaynağa Git →
+                </a>
+              )}
+            </div>
+
+            {relatedNews.length > 0 && (
+              <div style={{ marginTop: '3rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2.5rem' }}>
+                <h4 style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5rem', margin: '0 0 1.5rem 0' }}>
+                  Benzer Haberler
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {relatedNews.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => handleNewsClick(r.id)}
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '16px 20px', cursor: 'pointer', transition: '0.2s' }}
+                      onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
+                      onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                    >
+                      {r.category?.name && (
+                        <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase' }}>{r.category.name}</span>
+                      )}
+                      <p style={{ color: 'white', fontWeight: '700', fontSize: '0.95rem', margin: r.category?.name ? '8px 0 0' : '0', lineHeight: '1.4' }}>{r.title}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}

@@ -73,6 +73,7 @@ class NewsListOut(NewsBase):
     """
     id: int
     created_at: datetime
+    category: Optional[CategoryOut] = None
 
     class Config:
         from_attributes = True
@@ -83,8 +84,9 @@ class NewsDetailOut(NewsBase):
     Burada 'content' (tam metin) geri geliyor.
     """
     id: int
-    content: str # Tam metni buraya koyduk!
+    content: str
     created_at: datetime
+    category: Optional[CategoryOut] = None
 
     class Config:
         from_attributes = True
@@ -139,3 +141,15 @@ class SuggestionOut(BaseModel):
 class UserPasswordChange(BaseModel):
     old_password: str
     new_password: str
+
+class BookmarkOut(BaseModel):
+    id: int
+    news_id: int
+    saved_at: datetime
+    news: Optional["NewsListOut"] = None
+
+    class Config:
+        from_attributes = True
+
+class BookmarkPagination(PaginationBase):
+    items: List[BookmarkOut]

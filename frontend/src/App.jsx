@@ -7,6 +7,7 @@ import Podcast from './components/Podcast';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
+import Bookmarks from './components/Bookmarks';
 
 function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -39,6 +40,7 @@ function App() {
                 <Routes>
                   <Route path="/home" element={<Home />} />
                   <Route path="/podcasts" element={<Podcast />} />
+                  <Route path="/bookmarks" element={<Bookmarks />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/" element={<Navigate to="/home" />} />
                 </Routes>

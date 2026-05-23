@@ -4,6 +4,11 @@ import schemas, models
 from dependencies import db_dependency, user_dependency
 from utils import get_embedding
 from worker import run_scraper_task
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/news",
@@ -158,6 +163,52 @@ def refresh_news(current_user: user_dependency):
     return {"status": "processing"}
 
 
+@router.get("/trending", response_model=list[schemas.NewsListOut])
+def get_trending_news(db: db_dependency, current_user: user_dependency, limit: int = 10):
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    rows = (
+        db.query(models.UserClick.category_id, func.sum(models.UserClick.click_count).label("total"))
+        .filter(models.UserClick.last_click_at >= since)
+        .group_by(models.UserClick.category_id)
+        .order_by(func.sum(models.UserClick.click_count).desc())
+        .limit(5)
+        .all()
+    )
+    hot_category_ids = [r.category_id for r in rows]
+
+    if not hot_category_ids:
+        return (
+            db.query(models.News)
+            .order_by(models.News.published_at.desc().nullslast())
+            .limit(limit)
+            .all()
+        )
+
+    items = (
+        db.query(models.News)
+        .filter(models.News.category_id.in_(hot_category_ids))
+        .order_by(models.News.published_at.desc().nullslast())
+        .limit(limit)
+        .all()
+    )
+    return items
+
+
+@router.get("/{news_id}/related", response_model=list[schemas.NewsListOut])
+def get_related_news(news_id: int, db: db_dependency, current_user: user_dependency, limit: int = 5):
+    news = db.query(models.News).filter(models.News.id == news_id).first()
+    if not news or news.embedding is None:
+        return []
+    related = (
+        db.query(models.News)
+        .filter(models.News.id != news_id, models.News.embedding.isnot(None))
+        .order_by(models.News.embedding.cosine_distance(news.embedding))
+        .limit(limit)
+        .all()
+    )
+    return related
+
+
 @router.get("/{news_id}", response_model=schemas.NewsDetailOut)
 def get_news_detail(news_id: int, db: db_dependency, current_user: user_dependency):
     """
@@ -169,6 +220,37 @@ def get_news_detail(news_id: int, db: db_dependency, current_user: user_dependen
     if not news:
         raise HTTPException(status_code=404, detail="News not found!")
     return news
+
+@router.post("/{news_id}/feedback")
+def submit_summary_feedback(news_id: int, rating: str, db: db_dependency, current_user: user_dependency):
+    if rating not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="rating 'up' veya 'down' olmalı.")
+    news = db.query(models.News).filter(models.News.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="Haber bulunamadı.")
+
+    existing = db.query(models.SummaryFeedback).filter(
+        models.SummaryFeedback.news_id == news_id,
+        models.SummaryFeedback.user_id == current_user.id,
+    ).first()
+
+    if existing:
+        existing.rating = rating
+    else:
+        existing = models.SummaryFeedback(news_id=news_id, user_id=current_user.id, rating=rating)
+        db.add(existing)
+    db.commit()
+    return {"message": "Geri bildirim kaydedildi.", "rating": rating}
+
+
+@router.get("/{news_id}/feedback/mine")
+def get_my_feedback(news_id: int, db: db_dependency, current_user: user_dependency):
+    fb = db.query(models.SummaryFeedback).filter(
+        models.SummaryFeedback.news_id == news_id,
+        models.SummaryFeedback.user_id == current_user.id,
+    ).first()
+    return {"rating": fb.rating if fb else None}
+
 
 @router.get("/refresh/status")
 def get_refresh_status():
