@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 import AudioPlayer from './AudioPlayer';
@@ -10,28 +10,30 @@ function RssReader() {
   const [articles, setArticles] = useState([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [loadingLists, setLoadingLists] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
 
   const [showListPanel, setShowListPanel] = useState(true);
-
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
-
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [addingFeed, setAddingFeed] = useState(false);
   const [showFeedForm, setShowFeedForm] = useState(false);
-
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFeedFilter, setActiveFeedFilter] = useState(null);
+
   // Article modal
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [podcastStatus, setPodcastStatus] = useState(null); // null | 'loading' | 'processing' | 'ready'
+  const [podcastStatus, setPodcastStatus] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [podcastPollTitle, setPodcastPollTitle] = useState(null);
   const [podcastCache, setPodcastCache] = useState({});
 
   // Translation
-  const [activeTranslation, setActiveTranslation] = useState(null); // null | 'tr' | 'en'
+  const [activeTranslation, setActiveTranslation] = useState(null);
   const [translationCache, setTranslationCache] = useState({});
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -60,6 +62,7 @@ function RssReader() {
           setAudioUrl(data.audio_url);
           setPodcastStatus('ready');
           setPodcastCache(prev => ({ ...prev, [podcastPollTitle]: data.audio_url }));
+          showToast('Podcast hazır! 🎧', 'success');
         }
       } catch {}
     }, 2000);
@@ -85,11 +88,20 @@ function RssReader() {
   const loadArticles = async (listId) => {
     setLoadingArticles(true);
     setArticles([]);
+    setSearchTerm('');
+    setActiveFeedFilter(null);
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/rss-reader/lists/${listId}/articles`);
-      if (res.ok) setArticles(await res.json());
+      if (res.ok) {
+        setArticles(await res.json());
+        setLastRefreshed(new Date());
+      }
     } catch (_) { showToast('Haberler çekilemedi.', 'error'); }
     finally { setLoadingArticles(false); }
+  };
+
+  const handleRefresh = () => {
+    if (selectedList) loadArticles(selectedList.id);
   };
 
   const handleSelectList = (lst) => {
@@ -209,9 +221,7 @@ function RssReader() {
   };
 
   const handleTranslate = async (lang) => {
-    // Aynı dile tekrar basınca orijinale dön
     if (activeTranslation === lang) { setActiveTranslation(null); return; }
-    // Cache'de varsa direkt göster
     if (translationCache[lang]) { setActiveTranslation(lang); return; }
     setActiveTranslation(lang);
     setIsTranslating(true);
@@ -254,14 +264,51 @@ function RssReader() {
     }
   };
 
+  // Unique feed titles for filter chips
+  const feedTitles = useMemo(() => {
+    const seen = new Set();
+    return articles.map(a => a.feed_title).filter(t => t && !seen.has(t) && seen.add(t));
+  }, [articles]);
+
+  // Filtered articles
+  const filteredArticles = useMemo(() => {
+    let result = articles;
+    if (activeFeedFilter) result = result.filter(a => a.feed_title === activeFeedFilter);
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(a => a.title?.toLowerCase().includes(q) || a.feed_title?.toLowerCase().includes(q));
+    }
+    return result;
+  }, [articles, activeFeedFilter, searchTerm]);
+
   const formatDate = (iso) => {
     if (!iso) return '';
-    return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const d = new Date(iso);
+    const now = new Date();
+    const diffH = (now - d) / 3600000;
+    if (diffH < 1) return `${Math.floor(diffH * 60)} dk önce`;
+    if (diffH < 24) return `${Math.floor(diffH)} sa önce`;
+    if (diffH < 48) return 'Dün';
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  };
+
+  const formatLastRefreshed = () => {
+    if (!lastRefreshed) return '';
+    const diffMin = Math.floor((new Date() - lastRefreshed) / 60000);
+    if (diffMin < 1) return 'az önce güncellendi';
+    return `${diffMin} dk önce güncellendi`;
+  };
+
+  const readingTime = (text) => {
+    if (!text) return null;
+    const words = text.replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
+    const min = Math.ceil(words / 200);
+    return min > 0 ? `${min} dk` : null;
   };
 
   const stripHtml = (html) => {
     if (!html) return '';
-    return html.replace(/<[^>]*>/g, '').slice(0, 180);
+    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
   };
 
   const stripHtmlFull = (html) => {
@@ -269,58 +316,53 @@ function RssReader() {
     return html.replace(/<[^>]*>/g, '').trim();
   };
 
-  // ── Styles ──────────────────────────────────────────────────────────────────
+  // Deterministic color per feed title
+  const feedColor = (title) => {
+    const colors = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
+    if (!title) return colors[0];
+    const idx = [...title].reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
+    return colors[idx];
+  };
 
   const s = {
     page: { display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", color: '#f1f5f9', padding: isMobile ? '5rem 0 0' : '0' },
-
     listPanel: {
-      width: isMobile ? '100%' : '280px',
+      width: isMobile ? '100%' : '260px',
       flexShrink: 0,
       borderRight: '1px solid rgba(255,255,255,0.06)',
       display: isMobile ? (showListPanel ? 'flex' : 'none') : 'flex',
       flexDirection: 'column',
-      background: 'rgba(8, 12, 24, 0.6)',
+      background: 'rgba(8, 12, 24, 0.7)',
       overflowY: 'auto',
       padding: isMobile ? '1rem' : '1.5rem 1rem',
     },
-
     articlePanel: {
       flex: 1,
       overflowY: 'auto',
       display: isMobile ? (showListPanel ? 'none' : 'flex') : 'flex',
       flexDirection: 'column',
-      padding: isMobile ? '1rem' : '2rem 2.5rem',
+      padding: isMobile ? '1rem' : '1.75rem 2.5rem',
     },
-
     listItem: (active) => ({
       display: 'flex', alignItems: 'center', gap: '8px',
-      padding: '11px 14px', borderRadius: '14px', cursor: 'pointer',
+      padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
       background: active ? 'rgba(99,102,241,0.15)' : 'transparent',
       border: active ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
-      marginBottom: '4px', transition: '0.2s',
+      marginBottom: '3px', transition: '0.2s',
     }),
-
-    articleCard: {
-      background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(255,255,255,0.05)',
-      borderRadius: '18px', padding: '1.25rem 1.5rem', marginBottom: '14px',
-      transition: '0.2s', cursor: 'pointer',
-    },
-
     input: {
       width: '100%', padding: '10px 14px', borderRadius: '12px',
-      border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(2,6,23,0.5)',
+      border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(2,6,23,0.5)',
       color: 'white', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
     },
-
     btn: (variant = 'primary') => ({
       padding: '9px 16px', borderRadius: '10px', border: 'none', cursor: 'pointer',
       fontWeight: '700', fontSize: '0.82rem', transition: '0.2s',
       ...(variant === 'primary' ? { background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white' } : {}),
       ...(variant === 'ghost' ? { background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' } : {}),
       ...(variant === 'danger' ? { background: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' } : {}),
+      ...(variant === 'icon' ? { background: 'rgba(255,255,255,0.05)', color: '#64748b', border: '1px solid rgba(255,255,255,0.07)', padding: '8px 12px' } : {}),
     }),
-
     toast: {
       position: 'fixed', top: toast.show ? '24px' : '-80px', left: '50%', transform: 'translateX(-50%)',
       background: toast.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
@@ -337,28 +379,24 @@ function RssReader() {
 
       {/* ── LIST PANEL ────────────────────────────────────────── */}
       <div style={s.listPanel}>
-        {isMobile && !showListPanel && (
-          <button onClick={() => setShowListPanel(true)} style={{ ...s.btn('ghost'), marginBottom: '1rem', alignSelf: 'flex-start' }}>← Listeler</button>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>📡 RSS Listelerim</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <h2 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: 'white', letterSpacing: '-0.3px' }}>📡 Listelerim</h2>
         </div>
 
         <form onSubmit={handleCreateList} style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem' }}>
           <input
             style={{ ...s.input, fontSize: '0.8rem', padding: '8px 12px' }}
-            placeholder="Yeni liste adı..."
+            placeholder="Yeni liste..."
             value={newListName}
             onChange={e => setNewListName(e.target.value)}
           />
-          <button type="submit" disabled={creatingList || !newListName.trim()} style={{ ...s.btn('primary'), padding: '8px 12px', flexShrink: 0, opacity: !newListName.trim() ? 0.5 : 1 }}>+</button>
+          <button type="submit" disabled={creatingList || !newListName.trim()} style={{ ...s.btn('primary'), padding: '8px 14px', flexShrink: 0, opacity: !newListName.trim() ? 0.4 : 1 }}>+</button>
         </form>
 
         {loadingLists ? (
           <p style={{ color: '#475569', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>Yükleniyor...</p>
         ) : lists.length === 0 ? (
-          <p style={{ color: '#475569', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>Henüz liste yok.<br />Yukarıdan oluştur.</p>
+          <p style={{ color: '#475569', fontSize: '0.82rem', textAlign: 'center', marginTop: '2rem', lineHeight: '1.6' }}>Henüz liste yok.<br />Yukarıdan oluştur.</p>
         ) : (
           lists.map(lst => (
             <div key={lst.id}>
@@ -380,10 +418,11 @@ function RssReader() {
                   onMouseOver={e => { if (selectedList?.id !== lst.id) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                   onMouseOut={e => { if (selectedList?.id !== lst.id) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <span style={{ flex: 1, fontSize: '0.88rem', fontWeight: selectedList?.id === lst.id ? '700' : '500', color: selectedList?.id === lst.id ? 'white' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lst.name}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#475569', flexShrink: 0 }}>{lst.feed_count}</span>
-                  <button onClick={e => { e.stopPropagation(); setRenamingId(lst.id); setRenameValue(lst.name); }} style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', padding: '2px 4px', fontSize: '0.75rem', flexShrink: 0 }} title="Yeniden adlandır">✏️</button>
-                  <button onClick={e => handleDeleteList(lst.id, e)} style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', padding: '2px 4px', fontSize: '0.75rem', flexShrink: 0 }} title="Sil">🗑</button>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: feedColor(lst.name), flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '0.86rem', fontWeight: selectedList?.id === lst.id ? '700' : '500', color: selectedList?.id === lst.id ? 'white' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lst.name}</span>
+                  <span style={{ fontSize: '0.68rem', color: '#334155', background: 'rgba(255,255,255,0.04)', padding: '2px 6px', borderRadius: '6px', flexShrink: 0 }}>{lst.feed_count}</span>
+                  <button onClick={e => { e.stopPropagation(); setRenamingId(lst.id); setRenameValue(lst.name); }} style={{ background: 'transparent', border: 'none', color: '#334155', cursor: 'pointer', padding: '2px 4px', fontSize: '0.7rem', flexShrink: 0, opacity: 0.7 }} title="Yeniden adlandır">✏️</button>
+                  <button onClick={e => handleDeleteList(lst.id, e)} style={{ background: 'transparent', border: 'none', color: '#334155', cursor: 'pointer', padding: '2px 4px', fontSize: '0.7rem', flexShrink: 0, opacity: 0.7 }} title="Sil">🗑</button>
                 </div>
               )}
             </div>
@@ -398,28 +437,43 @@ function RssReader() {
         )}
 
         {!selectedList ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#475569', gap: '12px' }}>
-            <div style={{ fontSize: '3rem' }}>📡</div>
-            <p style={{ fontSize: '1.1rem', fontWeight: '600' }}>Bir liste seç veya oluştur</p>
-            <p style={{ fontSize: '0.9rem' }}>Soldaki panelden listeye tıkla.</p>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#475569', gap: '16px' }}>
+            <div style={{ fontSize: '4rem' }}>📡</div>
+            <p style={{ fontSize: '1.1rem', fontWeight: '700', color: '#64748b', margin: 0 }}>Bir liste seç veya oluştur</p>
+            <p style={{ fontSize: '0.9rem', margin: 0 }}>Soldaki panelden başla.</p>
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            {/* ── Header ── */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
                 <div>
-                  <h1 style={{ margin: 0, fontSize: isMobile ? '1.6rem' : '2rem', fontWeight: '900', color: 'white' }}>{selectedList.name}</h1>
-                  <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '0.85rem' }}>{selectedList.feed_count || 0} kaynak · {articles.length} makale</p>
+                  <h1 style={{ margin: 0, fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: '900', color: 'white', letterSpacing: '-0.5px' }}>{selectedList.name}</h1>
+                  <p style={{ margin: '4px 0 0', color: '#334155', fontSize: '0.78rem' }}>
+                    {selectedList.feed_count || 0} kaynak
+                    {articles.length > 0 && ` · ${filteredArticles.length}${filteredArticles.length !== articles.length ? `/${articles.length}` : ''} makale`}
+                    {lastRefreshed && <span style={{ marginLeft: '8px', color: '#1e293b' }}>· {formatLastRefreshed()}</span>}
+                  </p>
                 </div>
-                <button onClick={() => setShowFeedForm(p => !p)} style={{ ...s.btn(showFeedForm ? 'ghost' : 'primary'), whiteSpace: 'nowrap' }}>
-                  {showFeedForm ? '✕ Kapat' : '+ RSS Ekle/Kaldır'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleRefresh}
+                    disabled={loadingArticles}
+                    style={{ ...s.btn('icon'), opacity: loadingArticles ? 0.5 : 1 }}
+                    title="Yenile"
+                  >
+                    {loadingArticles ? '⏳' : '↻'} Yenile
+                  </button>
+                  <button onClick={() => setShowFeedForm(p => !p)} style={{ ...s.btn(showFeedForm ? 'ghost' : 'primary'), whiteSpace: 'nowrap' }}>
+                    {showFeedForm ? '✕ Kapat' : '+ RSS Ekle/Kaldır'}
+                  </button>
+                </div>
               </div>
 
+              {/* Feed management panel */}
               {showFeedForm && (
-                <div style={{ marginTop: '1.25rem', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '16px', padding: '1.25rem' }}>
-                  <form onSubmit={handleAddFeed} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ marginBottom: '1.25rem', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '16px', padding: '1.25rem' }}>
+                  <form onSubmit={handleAddFeed} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: selectedList.feeds?.length > 0 ? '1rem' : 0 }}>
                     <input
                       style={{ ...s.input, flex: 1, minWidth: '200px' }}
                       placeholder="https://example.com/feed.xml"
@@ -432,14 +486,14 @@ function RssReader() {
                       {addingFeed ? 'Ekleniyor...' : 'Ekle'}
                     </button>
                   </form>
-
                   {selectedList.feeds?.length > 0 && (
-                    <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {selectedList.feeds.map(f => (
                         <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: feedColor(f.title || f.url), flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: '600', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title || f.url}</p>
-                            {f.title && <p style={{ margin: 0, fontSize: '0.7rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.url}</p>}
+                            {f.title && <p style={{ margin: 0, fontSize: '0.7rem', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.url}</p>}
                           </div>
                           <button onClick={() => handleRemoveFeed(f.id)} style={{ ...s.btn('danger'), padding: '5px 10px', flexShrink: 0 }}>Kaldır</button>
                         </div>
@@ -448,40 +502,101 @@ function RssReader() {
                   )}
                 </div>
               )}
+
+              {/* Search bar */}
+              {articles.length > 0 && (
+                <div style={{ position: 'relative', marginBottom: '12px' }}>
+                  <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#334155', fontSize: '0.9rem', pointerEvents: 'none' }}>🔍</span>
+                  <input
+                    style={{ ...s.input, paddingLeft: '38px', fontSize: '0.88rem' }}
+                    placeholder="Başlık veya kaynak ara..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+                    >×</button>
+                  )}
+                </div>
+              )}
+
+              {/* Source filter chips */}
+              {feedTitles.length > 1 && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setActiveFeedFilter(null)}
+                    style={{ padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: '700', transition: '0.2s', background: !activeFeedFilter ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)', color: !activeFeedFilter ? '#818cf8' : '#475569' }}
+                  >
+                    Tümü
+                  </button>
+                  {feedTitles.map(title => (
+                    <button
+                      key={title}
+                      onClick={() => setActiveFeedFilter(activeFeedFilter === title ? null : title)}
+                      style={{ padding: '5px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: '700', transition: '0.2s', background: activeFeedFilter === title ? `${feedColor(title)}22` : 'rgba(255,255,255,0.05)', color: activeFeedFilter === title ? feedColor(title) : '#475569', borderLeft: `2px solid ${activeFeedFilter === title ? feedColor(title) : 'transparent'}` }}
+                    >
+                      {title}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Articles */}
+            {/* ── Articles ── */}
             {loadingArticles ? (
-              <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '12px', color: '#475569' }}>
-                <div style={{ fontSize: '2rem', animation: 'spin 1s linear infinite' }}>⏳</div>
-                <p>Haberler çekiliyor...</p>
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '12px', color: '#334155' }}>
+                <div style={{ fontSize: '2rem' }}>⏳</div>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>Haberler çekiliyor...</p>
               </div>
-            ) : articles.length === 0 ? (
+            ) : filteredArticles.length === 0 ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#475569', gap: '12px' }}>
                 <div style={{ fontSize: '3rem' }}>🗞️</div>
-                {selectedList.feed_count === 0
-                  ? <><p style={{ fontWeight: '600' }}>Henüz kaynak eklenmedi.</p><p style={{ fontSize: '0.9rem' }}>"+ RSS Ekle" butonuna tıkla.</p></>
-                  : <p style={{ fontWeight: '600' }}>Kaynaklar boş veya erişilemiyor.</p>
+                {articles.length === 0 && selectedList.feed_count === 0
+                  ? <><p style={{ fontWeight: '700', margin: 0 }}>Henüz kaynak eklenmedi.</p><p style={{ fontSize: '0.9rem', margin: 0 }}>"+ RSS Ekle" butonuna tıkla.</p></>
+                  : articles.length === 0
+                  ? <p style={{ fontWeight: '700', margin: 0 }}>Kaynaklar boş veya erişilemiyor.</p>
+                  : <p style={{ fontWeight: '700', margin: 0 }}>Aramanızla eşleşen makale yok.</p>
                 }
               </div>
             ) : (
               <div style={{ paddingBottom: '4rem' }}>
-                {articles.map((a, i) => (
-                  <div
-                    key={i}
-                    style={s.articleCard}
-                    onClick={() => handleArticleClick(a)}
-                    onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
-                    onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(15,23,42,0.5)'; }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{a.feed_title}</span>
-                      {a.published && <span style={{ fontSize: '0.65rem', color: '#475569' }}>· {formatDate(a.published)}</span>}
+                {filteredArticles.map((a, i) => {
+                  const rt = readingTime(a.summary);
+                  const hasPodcast = !!podcastCache[a.title];
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => handleArticleClick(a)}
+                      style={{ background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '18px', padding: '1.1rem 1.4rem', marginBottom: '10px', transition: '0.2s', cursor: 'pointer', position: 'relative' }}
+                      onMouseOver={e => { e.currentTarget.style.borderColor = `${feedColor(a.feed_title)}33`; e.currentTarget.style.background = 'rgba(15,23,42,0.8)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(15,23,42,0.5)'; e.currentTarget.style.transform = 'none'; }}
+                    >
+                      {/* Meta row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: '800', color: feedColor(a.feed_title), background: `${feedColor(a.feed_title)}18`, padding: '3px 8px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {a.feed_title}
+                        </span>
+                        {a.published && <span style={{ fontSize: '0.7rem', color: '#334155' }}>{formatDate(a.published)}</span>}
+                        {rt && <span style={{ fontSize: '0.68rem', color: '#1e293b' }}>· {rt} okuma</span>}
+                        {hasPodcast && (
+                          <span style={{ fontSize: '0.62rem', fontWeight: '800', color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: '6px', marginLeft: 'auto' }}>
+                            🎧 Podcast
+                          </span>
+                        )}
+                      </div>
+                      {/* Title */}
+                      <h3 style={{ margin: '0 0 6px', fontSize: isMobile ? '1rem' : '1.05rem', color: 'white', fontWeight: '700', lineHeight: '1.4' }}>{a.title}</h3>
+                      {/* Summary */}
+                      {a.summary && (
+                        <p style={{ margin: 0, fontSize: '0.83rem', color: '#475569', lineHeight: '1.55', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {stripHtml(a.summary)}
+                        </p>
+                      )}
                     </div>
-                    <h3 style={{ margin: '0 0 6px', fontSize: isMobile ? '1rem' : '1.1rem', color: 'white', fontWeight: '700', lineHeight: '1.4' }}>{a.title}</h3>
-                    {a.summary && <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5' }}>{stripHtml(a.summary)}</p>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
@@ -492,38 +607,40 @@ function RssReader() {
       {selectedArticle && (
         <div
           onClick={() => setSelectedArticle(null)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: isMobile ? 'flex-end' : 'center', zIndex: 2000, padding: isMobile ? 0 : '2rem' }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2,6,23,0.88)', backdropFilter: 'blur(16px)', display: 'flex', justifyContent: 'center', alignItems: isMobile ? 'flex-end' : 'center', zIndex: 2000, padding: isMobile ? 0 : '2rem' }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: 'rgba(15,23,42,0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: isMobile ? '28px 28px 0 0' : '28px', padding: isMobile ? '2rem 1.5rem 2.5rem' : '2.5rem', width: '100%', maxWidth: '680px', maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }}
+            style={{ background: 'rgba(10,15,30,0.99)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: isMobile ? '28px 28px 0 0' : '32px', padding: isMobile ? '2rem 1.5rem 2.5rem' : '2.75rem', width: '100%', maxWidth: '720px', maxHeight: isMobile ? '92vh' : '88vh', overflowY: 'auto', position: 'relative', boxShadow: '0 40px 100px rgba(0,0,0,0.7)' }}
           >
             {/* Close */}
             <button
               onClick={() => setSelectedArticle(null)}
-              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.07)', color: '#64748b', width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#64748b'; }}
             >✕</button>
 
             {/* Meta */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#818cf8', background: 'rgba(99,102,241,0.12)', padding: '4px 10px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap', paddingRight: '3rem' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: '800', color: feedColor(selectedArticle.feed_title), background: `${feedColor(selectedArticle.feed_title)}18`, padding: '4px 10px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
                 {selectedArticle.feed_title}
               </span>
               {selectedArticle.published && (
-                <span style={{ fontSize: '0.75rem', color: '#475569' }}>{formatDate(selectedArticle.published)}</span>
+                <span style={{ fontSize: '0.75rem', color: '#334155' }}>{new Date(selectedArticle.published).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               )}
             </div>
 
             {/* Title */}
-            <h2 style={{ margin: '0 0 1.5rem', fontSize: isMobile ? '1.3rem' : '1.6rem', fontWeight: '900', color: 'white', lineHeight: '1.35' }}>
+            <h2 style={{ margin: '0 0 1.75rem', fontSize: isMobile ? '1.35rem' : '1.7rem', fontWeight: '900', color: 'white', lineHeight: '1.3', letterSpacing: '-0.3px' }}>
               {selectedArticle.title}
             </h2>
 
-            {/* Summary */}
-            <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Özet</span>
-                <div style={{ display: 'flex', background: 'rgba(2,6,23,0.5)', borderRadius: '10px', padding: '3px', border: '1px solid rgba(255,255,255,0.07)' }}>
+            {/* Summary card */}
+            <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '18px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '0.62rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>İçerik</span>
+                <div style={{ display: 'flex', background: 'rgba(2,6,23,0.6)', borderRadius: '10px', padding: '3px', border: '1px solid rgba(255,255,255,0.07)' }}>
                   {[{ code: null, label: 'Orijinal' }, { code: 'tr', label: '🇹🇷 TR' }, { code: 'en', label: '🇬🇧 EN' }].map(({ code, label }) => (
                     <button
                       key={label}
@@ -534,12 +651,12 @@ function RssReader() {
                   ))}
                 </div>
               </div>
-              <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.7' }}>
+              <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.75' }}>
                 {isTranslating
-                  ? 'Çeviriliyor...'
+                  ? <span style={{ color: '#475569' }}>Çeviriliyor...</span>
                   : (activeTranslation && translationCache[activeTranslation])
                     ? translationCache[activeTranslation]
-                    : stripHtmlFull(selectedArticle.summary) || 'Bu makale için özet mevcut değil.'}
+                    : stripHtmlFull(selectedArticle.summary) || 'Bu makale için içerik mevcut değil.'}
               </p>
             </div>
 
@@ -556,14 +673,14 @@ function RssReader() {
             )}
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <a
                 href={selectedArticle.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ flex: 1, minWidth: '140px', padding: '12px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.9rem', textDecoration: 'none', textAlign: 'center', transition: '0.2s' }}
+                style={{ flex: 1, minWidth: '130px', padding: '13px 18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.09)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.88rem', textDecoration: 'none', textAlign: 'center', transition: '0.2s' }}
                 onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'white'; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#94a3b8'; }}
               >
                 🔗 Kaynağa Git
               </a>
@@ -572,7 +689,7 @@ function RssReader() {
                 <button
                   onClick={handleCreatePodcast}
                   disabled={podcastStatus === 'loading' || podcastStatus === 'processing'}
-                  style={{ flex: 1, minWidth: '140px', padding: '12px 20px', borderRadius: '14px', border: 'none', background: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'not-allowed' : 'pointer', transition: '0.2s' }}
+                  style={{ flex: 1, minWidth: '130px', padding: '13px 18px', borderRadius: '14px', border: 'none', background: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'rgba(99,102,241,0.25)' : 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', fontSize: '0.88rem', cursor: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'not-allowed' : 'pointer', transition: '0.2s', boxShadow: (!podcastStatus) ? '0 8px 20px -4px rgba(99,102,241,0.4)' : 'none' }}
                 >
                   {podcastStatus === 'loading' ? '⏳ Hazırlanıyor...' : podcastStatus === 'processing' ? '🎙️ Üretiliyor...' : '🎙️ Podcast Oluştur'}
                 </button>

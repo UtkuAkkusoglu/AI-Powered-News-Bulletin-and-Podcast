@@ -36,7 +36,7 @@ def _fetch_feed(url: str, feed_title: str) -> list[dict]:
     try:
         parsed = feedparser.parse(url)
         articles = []
-        for entry in parsed.entries[:30]:
+        for entry in parsed.entries[:100]:
             pub = entry.get("published_parsed") or entry.get("updated_parsed")
             if pub:
                 dt = datetime(*pub[:6], tzinfo=timezone.utc).isoformat()
