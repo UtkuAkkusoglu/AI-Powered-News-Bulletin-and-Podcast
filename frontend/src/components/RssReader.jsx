@@ -28,6 +28,7 @@ function RssReader() {
   const [podcastStatus, setPodcastStatus] = useState(null); // null | 'loading' | 'processing' | 'ready'
   const [audioUrl, setAudioUrl] = useState(null);
   const [podcastPollTitle, setPodcastPollTitle] = useState(null);
+  const [podcastCache, setPodcastCache] = useState({});
 
   // Translation
   const [activeTranslation, setActiveTranslation] = useState(null); // null | 'tr' | 'en'
@@ -58,6 +59,7 @@ function RssReader() {
           clearInterval(interval);
           setAudioUrl(data.audio_url);
           setPodcastStatus('ready');
+          setPodcastCache(prev => ({ ...prev, [podcastPollTitle]: data.audio_url }));
         }
       } catch {}
     }, 2000);
@@ -192,12 +194,18 @@ function RssReader() {
 
   const handleArticleClick = (article) => {
     setSelectedArticle(article);
-    setPodcastStatus(null);
-    setAudioUrl(null);
-    setPodcastPollTitle(null);
     setActiveTranslation(null);
     setTranslationCache({});
     setIsTranslating(false);
+    setPodcastPollTitle(null);
+    const cached = podcastCache[article.title];
+    if (cached) {
+      setAudioUrl(cached);
+      setPodcastStatus('ready');
+    } else {
+      setPodcastStatus(null);
+      setAudioUrl(null);
+    }
   };
 
   const handleTranslate = async (lang) => {
@@ -235,6 +243,7 @@ function RssReader() {
       if (data.status === 'exists') {
         setAudioUrl(data.audio_url);
         setPodcastStatus('ready');
+        setPodcastCache(prev => ({ ...prev, [selectedArticle.title]: data.audio_url }));
       } else {
         setPodcastStatus('processing');
         setPodcastPollTitle(selectedArticle.title);

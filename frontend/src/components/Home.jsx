@@ -124,6 +124,7 @@ function Home() {
   const closePlayer = () => {
     setPodcastId(null);
     setAudioUrl(null);
+    setPodcastStatus('idle');
   };
 
   const readingTime = (text) => {
@@ -487,7 +488,7 @@ function Home() {
         </div>
       )}
 
-      {podcastId && podcastStatus === 'ready' && audioUrl && (
+      {!selectedNews && podcastId && podcastStatus === 'ready' && audioUrl && (
         <AudioPlayer
           src={audioUrl}
           title={selectedNews?.title}
@@ -495,7 +496,6 @@ function Home() {
           onClose={closePlayer}
           onNavigate={() => navigate('/podcasts')}
           floating
-          autoPlay={podcastAutoPlay}
           isMobile={isMobile}
         />
       )}
@@ -555,7 +555,7 @@ function Home() {
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', margin: 0 }}>🎧 Hazırlanıyor...</p>}
               {podcastStatus === 'ready' && audioUrl && (
                 <div style={{ width: '100%', marginBottom: '8px' }}>
-                  <AudioPlayer src={audioUrl} title={selectedNews?.title} categoryName={selectedNews?.category?.name} isMobile={isMobile} />
+                  <AudioPlayer src={audioUrl} title={selectedNews?.title} categoryName={selectedNews?.category?.name} isMobile={isMobile} autoPlay={podcastAutoPlay} />
                 </div>
               )}
 
