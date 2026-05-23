@@ -253,7 +253,7 @@ def get_my_feedback(news_id: int, db: db_dependency, current_user: user_dependen
 
 
 @router.get("/{news_id}/translate")
-def translate_news(news_id: int, lang: str = "en", db: db_dependency, current_user: user_dependency):
+def translate_news(news_id: int, db: db_dependency, current_user: user_dependency, lang: str = "en"):
     if lang not in ("en", "tr"):
         raise HTTPException(status_code=400, detail="lang must be 'en' or 'tr'")
     news = db.query(models.News).filter(models.News.id == news_id).first()

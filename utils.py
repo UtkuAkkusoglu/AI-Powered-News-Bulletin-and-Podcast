@@ -58,17 +58,30 @@ def get_embedding(text: str, task_type: str = "retrieval_document") -> list[floa
 
 
 def get_signed_audio_url(gcs_url: str, expiration_minutes: int = 60) -> str:
-    """GCS URL'inden 1 saatlik geçici imzalı link üretir."""
+    """GCS URL'inden 1 saatlik geçici imzalı link üretir. Cloud Run'da ADC kullanır."""
+    import google.auth
+    import google.auth.transport.requests
+    from google.auth import impersonated_credentials
     from google.oauth2 import service_account
     from datetime import timedelta
 
     bucket_name = settings.GCP_BUCKET_NAME
     blob_name = gcs_url.split(f"{bucket_name}/")[-1]
 
-    credentials = service_account.Credentials.from_service_account_file(
-        settings.GOOGLE_APPLICATION_CREDENTIALS,
-        scopes=["https://www.googleapis.com/auth/cloud-platform"],
-    )
+    cred_file = settings.GOOGLE_APPLICATION_CREDENTIALS
+    import os
+    if os.path.exists(cred_file):
+        credentials = service_account.Credentials.from_service_account_file(
+            cred_file,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+    else:
+        credentials, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        request = google.auth.transport.requests.Request()
+        credentials.refresh(request)
+
     storage_client = storage.Client(credentials=credentials)
     blob = storage_client.bucket(bucket_name).blob(blob_name)
     return blob.generate_signed_url(
