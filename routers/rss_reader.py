@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 import feedparser
 import concurrent.futures
 from datetime import datetime, timezone
+from worker import process_rss_article_tts_task
 
 router = APIRouter(prefix="/rss-reader", tags=["RSS Reader"])
 
@@ -17,6 +18,11 @@ class ListCreate(BaseModel):
 
 class FeedAdd(BaseModel):
     url: str
+
+
+class RssPodcastCreate(BaseModel):
+    title: str
+    content: str
 
 
 def _fetch_feed(url: str, feed_title: str) -> list[dict]:
@@ -170,3 +176,31 @@ def get_articles(list_id: int, db: db_dependency, current_user: user_dependency)
     articles = [item for sublist in results for item in sublist]
     articles.sort(key=lambda a: a["published"] or "", reverse=True)
     return articles
+
+
+# ── RSS Podcast ────────────────────────────────────────────────────────────────
+
+@router.post("/podcast", status_code=status.HTTP_202_ACCEPTED)
+def create_rss_podcast(body: RssPodcastCreate, db: db_dependency, current_user: user_dependency):
+    existing = db.query(models.Podcast).filter(
+        models.Podcast.user_id == current_user.id,
+        models.Podcast.title == body.title,
+        models.Podcast.news_id.is_(None),
+    ).first()
+    if existing:
+        return {"status": "exists", "podcast_id": existing.id}
+
+    process_rss_article_tts_task.delay(body.title, body.content, current_user.id)
+    return {"status": "processing"}
+
+
+@router.get("/podcast/check")
+def check_rss_podcast(title: str, db: db_dependency, current_user: user_dependency):
+    podcast = db.query(models.Podcast).filter(
+        models.Podcast.user_id == current_user.id,
+        models.Podcast.title == title,
+        models.Podcast.news_id.is_(None),
+    ).first()
+    if not podcast:
+        raise HTTPException(status_code=404, detail="Podcast henüz hazır değil.")
+    return {"podcast_id": podcast.id}

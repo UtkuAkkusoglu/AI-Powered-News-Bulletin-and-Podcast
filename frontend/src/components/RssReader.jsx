@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
+import AudioPlayer from './AudioPlayer';
 
 function RssReader() {
   const { isMobile } = useWindowSize();
@@ -10,21 +11,23 @@ function RssReader() {
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [loadingLists, setLoadingLists] = useState(true);
 
-  // Panel visibility (mobile: show either list panel or articles)
   const [showListPanel, setShowListPanel] = useState(true);
 
-  // New list form
   const [newListName, setNewListName] = useState('');
   const [creatingList, setCreatingList] = useState(false);
 
-  // Feed management
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [addingFeed, setAddingFeed] = useState(false);
   const [showFeedForm, setShowFeedForm] = useState(false);
 
-  // Rename
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+
+  // Article modal
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [podcastStatus, setPodcastStatus] = useState(null); // null | 'loading' | 'processing' | 'ready'
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [podcastPollTitle, setPodcastPollTitle] = useState(null);
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => setToast({ show: true, message, type });
@@ -36,6 +39,35 @@ function RssReader() {
   }, [toast.show]);
 
   useEffect(() => { fetchLists(); }, []);
+
+  // Podcast polling
+  useEffect(() => {
+    if (podcastStatus !== 'processing' || !podcastPollTitle) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetchWithAuth(
+          `${import.meta.env.VITE_API_URL}/rss-reader/podcast/check?title=${encodeURIComponent(podcastPollTitle)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          clearInterval(interval);
+          await fetchAudio(data.podcast_id);
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [podcastStatus, podcastPollTitle]);
+
+  const fetchAudio = async (id) => {
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/${id}/audio`);
+      setAudioUrl(res.url);
+      setPodcastStatus('ready');
+    } catch {
+      showToast('Ses yüklenemedi.', 'error');
+      setPodcastStatus(null);
+    }
+  };
 
   const fetchLists = async () => {
     setLoadingLists(true);
@@ -66,6 +98,7 @@ function RssReader() {
   const handleSelectList = (lst) => {
     setSelectedList(lst);
     setShowFeedForm(false);
+    setSelectedArticle(null);
     loadArticles(lst.id);
     if (isMobile) setShowListPanel(false);
   };
@@ -162,6 +195,36 @@ function RssReader() {
     } catch (_) { showToast('Kaldırılamadı.', 'error'); }
   };
 
+  const handleArticleClick = (article) => {
+    setSelectedArticle(article);
+    setPodcastStatus(null);
+    setAudioUrl(null);
+    setPodcastPollTitle(null);
+  };
+
+  const handleCreatePodcast = async () => {
+    if (!selectedArticle) return;
+    setPodcastStatus('loading');
+    const content = stripHtmlFull(selectedArticle.summary) || selectedArticle.title;
+    try {
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/rss-reader/podcast`, {
+        method: 'POST',
+        body: JSON.stringify({ title: selectedArticle.title, content }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (data.status === 'exists') {
+        await fetchAudio(data.podcast_id);
+      } else {
+        setPodcastStatus('processing');
+        setPodcastPollTitle(selectedArticle.title);
+      }
+    } catch {
+      showToast('Podcast oluşturulamadı.', 'error');
+      setPodcastStatus(null);
+    }
+  };
+
   const formatDate = (iso) => {
     if (!iso) return '';
     return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -170,6 +233,11 @@ function RssReader() {
   const stripHtml = (html) => {
     if (!html) return '';
     return html.replace(/<[^>]*>/g, '').slice(0, 180);
+  };
+
+  const stripHtmlFull = (html) => {
+    if (!html) return '';
+    return html.replace(/<[^>]*>/g, '').trim();
   };
 
   // ── Styles ──────────────────────────────────────────────────────────────────
@@ -248,7 +316,6 @@ function RssReader() {
           <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>📡 RSS Listelerim</h2>
         </div>
 
-        {/* Create list form */}
         <form onSubmit={handleCreateList} style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem' }}>
           <input
             style={{ ...s.input, fontSize: '0.8rem', padding: '8px 12px' }}
@@ -259,7 +326,6 @@ function RssReader() {
           <button type="submit" disabled={creatingList || !newListName.trim()} style={{ ...s.btn('primary'), padding: '8px 12px', flexShrink: 0, opacity: !newListName.trim() ? 0.5 : 1 }}>+</button>
         </form>
 
-        {/* List items */}
         {loadingLists ? (
           <p style={{ color: '#475569', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>Yükleniyor...</p>
         ) : lists.length === 0 ? (
@@ -322,7 +388,6 @@ function RssReader() {
                 </button>
               </div>
 
-              {/* Add feed form */}
               {showFeedForm && (
                 <div style={{ marginTop: '1.25rem', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '16px', padding: '1.25rem' }}>
                   <form onSubmit={handleAddFeed} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -339,7 +404,6 @@ function RssReader() {
                     </button>
                   </form>
 
-                  {/* Existing feeds list */}
                   {selectedList.feeds?.length > 0 && (
                     <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {selectedList.feeds.map(f => (
@@ -374,32 +438,103 @@ function RssReader() {
             ) : (
               <div style={{ paddingBottom: '4rem' }}>
                 {articles.map((a, i) => (
-                  <a
+                  <div
                     key={i}
-                    href={a.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: 'none', display: 'block' }}
+                    style={s.articleCard}
+                    onClick={() => handleArticleClick(a)}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(15,23,42,0.5)'; }}
                   >
-                    <div
-                      style={s.articleCard}
-                      onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
-                      onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(15,23,42,0.5)'; }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.65rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{a.feed_title}</span>
-                        {a.published && <span style={{ fontSize: '0.65rem', color: '#475569' }}>· {formatDate(a.published)}</span>}
-                      </div>
-                      <h3 style={{ margin: '0 0 6px', fontSize: isMobile ? '1rem' : '1.1rem', color: 'white', fontWeight: '700', lineHeight: '1.4' }}>{a.title}</h3>
-                      {a.summary && <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5' }}>{stripHtml(a.summary)}</p>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{a.feed_title}</span>
+                      {a.published && <span style={{ fontSize: '0.65rem', color: '#475569' }}>· {formatDate(a.published)}</span>}
                     </div>
-                  </a>
+                    <h3 style={{ margin: '0 0 6px', fontSize: isMobile ? '1rem' : '1.1rem', color: 'white', fontWeight: '700', lineHeight: '1.4' }}>{a.title}</h3>
+                    {a.summary && <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5' }}>{stripHtml(a.summary)}</p>}
+                  </div>
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* ── ARTICLE MODAL ─────────────────────────────────────── */}
+      {selectedArticle && (
+        <div
+          onClick={() => setSelectedArticle(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: isMobile ? 'flex-end' : 'center', zIndex: 2000, padding: isMobile ? 0 : '2rem' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'rgba(15,23,42,0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: isMobile ? '28px 28px 0 0' : '28px', padding: isMobile ? '2rem 1.5rem 2.5rem' : '2.5rem', width: '100%', maxWidth: '680px', maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setSelectedArticle(null)}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >✕</button>
+
+            {/* Meta */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#818cf8', background: 'rgba(99,102,241,0.12)', padding: '4px 10px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                {selectedArticle.feed_title}
+              </span>
+              {selectedArticle.published && (
+                <span style={{ fontSize: '0.75rem', color: '#475569' }}>{formatDate(selectedArticle.published)}</span>
+              )}
+            </div>
+
+            {/* Title */}
+            <h2 style={{ margin: '0 0 1.5rem', fontSize: isMobile ? '1.3rem' : '1.6rem', fontWeight: '900', color: 'white', lineHeight: '1.35' }}>
+              {selectedArticle.title}
+            </h2>
+
+            {/* Summary */}
+            <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.7' }}>
+                {stripHtmlFull(selectedArticle.summary) || 'Bu makale için özet mevcut değil.'}
+              </p>
+            </div>
+
+            {/* Audio player */}
+            {podcastStatus === 'ready' && audioUrl && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <AudioPlayer
+                  src={audioUrl}
+                  title={selectedArticle.title}
+                  categoryName={selectedArticle.feed_title}
+                  isMobile={isMobile}
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <a
+                href={selectedArticle.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flex: 1, minWidth: '140px', padding: '12px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.9rem', textDecoration: 'none', textAlign: 'center', transition: '0.2s' }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'white'; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+              >
+                🔗 Kaynağa Git
+              </a>
+
+              {podcastStatus !== 'ready' && (
+                <button
+                  onClick={handleCreatePodcast}
+                  disabled={podcastStatus === 'loading' || podcastStatus === 'processing'}
+                  style={{ flex: 1, minWidth: '140px', padding: '12px 20px', borderRadius: '14px', border: 'none', background: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: (podcastStatus === 'loading' || podcastStatus === 'processing') ? 'not-allowed' : 'pointer', transition: '0.2s' }}
+                >
+                  {podcastStatus === 'loading' ? '⏳ Hazırlanıyor...' : podcastStatus === 'processing' ? '🎙️ Üretiliyor...' : '🎙️ Podcast Oluştur'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -181,6 +181,72 @@ def auto_generate_summaries_and_embeddings_task():
     finally:
         db.close()
 
+@celery_app.task(name="process_rss_article_tts", queue="ai_queue")
+def process_rss_article_tts_task(title: str, content: str, user_id: int):
+    """RSS makale metnini Gemini ile Türkçeye özetler, TTS ile sese çevirir ve kaydeder."""
+    import hashlib
+    tmp_key = hashlib.md5(f"{title}{user_id}".encode()).hexdigest()[:12]
+    tmp_path = f"/tmp/rss_{tmp_key}.mp3"
+    db = SessionLocal()
+    try:
+        ai_client = genai.Client(
+            vertexai=True,
+            project=settings.GCP_PROJECT_ID,
+            location=settings.GCP_LOCATION,
+        )
+        prompt = (
+            "Aşağıdaki haberi Türkçe olarak 3-4 cümleyle özetle. "
+            "Özet podcast için sesli okunacağından doğal bir konuşma diliyle yaz, "
+            "madde işareti veya başlık kullanma:\n\n"
+            f"Başlık: {title}\n\nİçerik: {content[:3000]}"
+        )
+        gemini_response = ai_client.models.generate_content(
+            model="publishers/google/models/gemini-2.5-flash",
+            contents=prompt,
+        )
+        summary = gemini_response.text.strip()
+
+        tts_client = texttospeech.TextToSpeechClient()
+        synthesis_input = texttospeech.SynthesisInput(text=summary)
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="tr-TR",
+            ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL,
+        )
+        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+        tts_response = tts_client.synthesize_speech(
+            input=synthesis_input, voice=voice, audio_config=audio_config
+        )
+        with open(tmp_path, "wb") as f:
+            f.write(tts_response.audio_content)
+
+        destination_blob = f"podcasts/rss_{tmp_key}.mp3"
+        audio_url = upload_to_gcs(tmp_path, destination_blob)
+
+        word_count = len(summary.split())
+        duration_seconds = max(1, int(word_count / 150 * 60))
+
+        podcast = models.Podcast(
+            title=title,
+            audio_url=audio_url,
+            user_id=user_id,
+            duration=duration_seconds,
+            news_id=None,
+        )
+        db.add(podcast)
+        db.commit()
+        print(f"[Worker] RSS Podcast kaydedildi — ID: {podcast.id}")
+        return {"status": "success", "podcast_id": podcast.id}
+
+    except Exception as e:
+        db.rollback()
+        print(f"[Worker] RSS TTS HATA: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 @celery_app.task(name="run_scraper", queue="scraper_queue")
 def run_scraper_task():
     import sys
