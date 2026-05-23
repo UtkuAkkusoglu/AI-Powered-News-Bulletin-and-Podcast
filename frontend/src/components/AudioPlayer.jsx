@@ -21,7 +21,7 @@ function formatTime(secs) {
  *   floating     – if true renders position:fixed at bottom-center
  *   isMobile     – passed down from parent for responsive offsets
  */
-function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating = false, isMobile = false }) {
+function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating = false, isMobile = false, autoPlay = false }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -37,7 +37,7 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
     if (src && audioRef.current) {
       audioRef.current.load();
       audioRef.current.playbackRate = SPEEDS[speedIdx];
-      audioRef.current.play().catch(() => {});
+      if (autoPlay) audioRef.current.play().catch(() => {});
     }
   }, [src]);
 

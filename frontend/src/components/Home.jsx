@@ -484,6 +484,7 @@ function Home() {
           onClose={closePlayer}
           onNavigate={() => navigate('/podcasts')}
           floating
+          autoPlay
           isMobile={isMobile}
         />
       )}
