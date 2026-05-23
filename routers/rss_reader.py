@@ -8,6 +8,7 @@ import feedparser
 import concurrent.futures
 from datetime import datetime, timezone
 from worker import process_rss_article_tts_task
+from utils import _genai_client
 
 router = APIRouter(prefix="/rss-reader", tags=["RSS Reader"])
 
@@ -23,6 +24,11 @@ class FeedAdd(BaseModel):
 class RssPodcastCreate(BaseModel):
     title: str
     content: str
+
+
+class RssTranslateRequest(BaseModel):
+    text: str
+    lang: str = "en"
 
 
 def _fetch_feed(url: str, feed_title: str) -> list[dict]:
@@ -179,6 +185,19 @@ def get_articles(list_id: int, db: db_dependency, current_user: user_dependency)
 
 
 # ── RSS Podcast ────────────────────────────────────────────────────────────────
+
+@router.post("/translate")
+def translate_rss_article(body: RssTranslateRequest, current_user: user_dependency):
+    if body.lang not in ("en", "tr"):
+        raise HTTPException(status_code=400, detail="lang must be 'en' or 'tr'")
+    target = "İngilizce" if body.lang == "en" else "Türkçe"
+    client = _genai_client()
+    response = client.models.generate_content(
+        model="publishers/google/models/gemini-2.5-flash",
+        contents=f"Aşağıdaki metni {target} diline çevir. Yalnızca çeviriyi döndür:\n\n{body.text[:3000]}",
+    )
+    return {"translated": response.text.strip(), "lang": body.lang}
+
 
 @router.post("/podcast", status_code=status.HTTP_202_ACCEPTED)
 def create_rss_podcast(body: RssPodcastCreate, db: db_dependency, current_user: user_dependency):

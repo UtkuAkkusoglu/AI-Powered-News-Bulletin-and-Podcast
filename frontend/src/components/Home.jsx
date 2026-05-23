@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 import AudioPlayer from './AudioPlayer';
@@ -7,6 +7,7 @@ import AudioPlayer from './AudioPlayer';
 function Home() {
   const { isMobile } = useWindowSize();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [suggestion, setSuggestion] = useState(null);
@@ -325,6 +326,15 @@ function Home() {
       if (feedbackRes.ok) { const fd = await feedbackRes.json(); setMyFeedback(fd.rating); }
     } catch (error) {}
   };
+
+  // Bookmarks sayfasından ?open=ID ile yönlendirme geldiğinde haberi otomatik aç
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSearchParams({});
+      handleNewsClick(parseInt(openId));
+    }
+  }, []);
 
   const handleFeedback = async (newsId, rating) => {
     try {

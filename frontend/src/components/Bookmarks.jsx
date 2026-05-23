@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 
 function Bookmarks() {
   const { isMobile } = useWindowSize();
+  const navigate = useNavigate();
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNews, setSelectedNews] = useState(null);
@@ -139,12 +141,20 @@ function Bookmarks() {
             )}
             <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.6rem', fontWeight: '900', color: 'white', marginBottom: '30px', paddingRight: '3rem' }}>{selectedNews.title}</h2>
             <div style={{ lineHeight: '1.9', color: '#cbd5e1', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>{selectedNews.content || selectedNews.summary}</div>
-            {selectedNews.source_url && (
-              <a href={selectedNews.source_url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'inline-block', marginTop: '2rem', padding: '14px 22px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', textDecoration: 'none', fontWeight: '600' }}>
-                Kaynağa Git →
-              </a>
-            )}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '2rem' }}>
+              <button
+                onClick={() => { setSelectedNews(null); navigate(`/home?open=${selectedNews.id}`); }}
+                style={{ padding: '14px 22px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' }}
+              >
+                🏠 Akışta Aç
+              </button>
+              {selectedNews.source_url && (
+                <a href={selectedNews.source_url} target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '14px 22px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', textDecoration: 'none', fontWeight: '600' }}>
+                  Kaynağa Git →
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

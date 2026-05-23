@@ -29,6 +29,11 @@ function RssReader() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [podcastPollTitle, setPodcastPollTitle] = useState(null);
 
+  // Translation
+  const [translationLang, setTranslationLang] = useState('tr');
+  const [translatedText, setTranslatedText] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => setToast({ show: true, message, type });
   useEffect(() => {
@@ -190,6 +195,28 @@ function RssReader() {
     setPodcastStatus(null);
     setAudioUrl(null);
     setPodcastPollTitle(null);
+    setTranslationLang('tr');
+    setTranslatedText(null);
+    setIsTranslating(false);
+  };
+
+  const handleTranslate = async (lang) => {
+    if (lang === 'tr') { setTranslationLang('tr'); return; }
+    if (translationLang === lang && translatedText) return;
+    setTranslationLang(lang);
+    setIsTranslating(true);
+    try {
+      const content = stripHtmlFull(selectedArticle.summary) || selectedArticle.title;
+      const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/rss-reader/translate`, {
+        method: 'POST',
+        body: JSON.stringify({ text: content, lang }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTranslatedText(data.translated);
+      }
+    } catch (_) { showToast('Çeviri başarısız.', 'error'); setTranslationLang('tr'); }
+    finally { setIsTranslating(false); }
   };
 
   const handleCreatePodcast = async () => {
@@ -483,8 +510,25 @@ function RssReader() {
 
             {/* Summary */}
             <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Özet</span>
+                <div style={{ display: 'flex', background: 'rgba(2,6,23,0.5)', borderRadius: '10px', padding: '3px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {[{ code: 'tr', label: '🇹🇷 TR' }, { code: 'en', label: '🇬🇧 EN' }].map(({ code, label }) => (
+                    <button
+                      key={code}
+                      onClick={() => handleTranslate(code)}
+                      disabled={isTranslating}
+                      style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: isTranslating ? 'not-allowed' : 'pointer', fontSize: '0.65rem', fontWeight: '800', transition: '0.2s', background: translationLang === code ? 'rgba(99,102,241,0.25)' : 'transparent', color: translationLang === code ? '#818cf8' : '#475569' }}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
               <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.7' }}>
-                {stripHtmlFull(selectedArticle.summary) || 'Bu makale için özet mevcut değil.'}
+                {isTranslating
+                  ? 'Çeviriliyor...'
+                  : (translationLang === 'en' && translatedText)
+                    ? translatedText
+                    : stripHtmlFull(selectedArticle.summary) || 'Bu makale için özet mevcut değil.'}
               </p>
             </div>
 
