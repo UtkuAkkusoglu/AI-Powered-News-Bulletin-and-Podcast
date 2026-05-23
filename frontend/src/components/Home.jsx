@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 
 function Home() {
   const { isMobile } = useWindowSize();
+  const navigate = useNavigate();
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [suggestion, setSuggestion] = useState(null);
@@ -14,6 +16,11 @@ function Home() {
   
   // 🔥 SES DOSYASI İÇİN BACKEND'DEN GELEN DİREKT LİNKİ TUTACAĞIZ
   const [audioUrl, setAudioUrl] = useState(null);
+
+  // Player state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   
   const pollRef = useRef(null);
   const audioRef = useRef(null); 
@@ -44,12 +51,40 @@ function Home() {
     }
   }, [toast.show]);
 
-  // Yeni bir ses linki geldiğinde oynatıcıyı otomatik olarak tetikler
+  // Yeni ses geldiğinde state'i sıfırla ve oynat
   useEffect(() => {
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
     if (audioUrl && audioRef.current) {
       audioRef.current.load();
-      audioRef.current.play().catch(() => console.log("Otomatik oynatma tarayıcı tarafından engellendi."));
+      audioRef.current.play().catch(() => {});
     }
+  }, [audioUrl]);
+
+  // Audio element event listener'ları
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoaded = () => { if (audio.duration && !isNaN(audio.duration)) setDuration(audio.duration); };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => { setIsPlaying(false); setCurrentTime(0); };
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('durationchange', onLoaded);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoaded);
+      audio.removeEventListener('durationchange', onLoaded);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+    };
   }, [audioUrl]);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
@@ -112,6 +147,39 @@ function Home() {
   };
 
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
+
+  const formatTime = (secs) => {
+    if (!secs || isNaN(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    isPlaying ? audioRef.current.pause() : audioRef.current.play().catch(() => {});
+  };
+
+  const handleSkip = (seconds) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = Math.max(0, Math.min(duration, audioRef.current.currentTime + seconds));
+  };
+
+  const handleSeek = (e) => {
+    if (!duration || !audioRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = ratio * duration;
+  };
+
+  const closePlayer = () => {
+    audioRef.current?.pause();
+    setPodcastId(null);
+    setAudioUrl(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  };
   
   const handleCategoryChange = (catId) => { 
     // Ref'i anında en güncel kategori ID'si ile eşitliyoruz, böylece herhangi bir döngü veya asenkron işlem içinde doğru değeri yakalayabiliriz
@@ -319,10 +387,14 @@ function Home() {
       backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: '0.3s'
     }),
     floatingPlayer: {
-      position: 'fixed', bottom: '30px', left: isMobile ? '50%' : 'calc(50% + 140px)', transform: 'translateX(-50%)',
-      width: isMobile ? 'calc(100% - 2rem)' : '90%', maxWidth: '520px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 1.5rem', zIndex: 9999, display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto'
+      position: 'fixed', bottom: '24px',
+      left: isMobile ? '50%' : 'calc(50% + 140px)', transform: 'translateX(-50%)',
+      width: isMobile ? 'calc(100% - 2rem)' : '440px',
+      background: 'rgba(8, 12, 24, 0.96)', backdropFilter: 'blur(28px) saturate(180%)',
+      border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: '20px', padding: '16px 18px',
+      zIndex: 9999,
+      boxShadow: '0 28px 56px -12px rgba(0,0,0,0.75), 0 0 0 1px rgba(99,102,241,0.07), inset 0 1px 0 rgba(255,255,255,0.04)',
+      animation: 'slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
     }
   };
 
@@ -380,38 +452,102 @@ function Home() {
         </div>
       )}
 
-      {/* YÜZER OYNATICI - ARTIK SADECE AUDIO_URL VARSA OYNAR */}
+      {/* CUSTOM PODCAST PLAYER */}
       {podcastId && podcastStatus === 'ready' && audioUrl && (
         <div style={styles.floatingPlayer}>
-          <div style={{ width: '45px', height: '45px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-            🎙️
+          {/* Gizli audio element — native controls yok */}
+          <audio ref={audioRef} key={podcastId} src={audioUrl} style={{ display: 'none' }} />
+
+          {/* Üst satır: ikon + başlık + kapat */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{
+              width: '40px', height: '40px', flexShrink: 0,
+              background: 'linear-gradient(135deg, #6366f1, #a78bfa)',
+              borderRadius: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.1rem',
+              boxShadow: isPlaying ? '0 0 18px rgba(99,102,241,0.55)' : 'none',
+              transition: 'box-shadow 0.4s ease',
+            }}>🎙️</div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: 'white', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '2px' }}>
+                {selectedNews?.title || 'Sesli Özet'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>AI Podcast</span>
+                {selectedNews?.category?.name && (
+                  <><span style={{ color: '#1e293b', fontSize: '0.6rem' }}>•</span>
+                  <span style={{ fontSize: '0.6rem', color: '#475569' }}>{selectedNews.category.name}</span></>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={closePlayer}
+              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#475569', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#ef4444'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#475569'; }}
+            >✕</button>
           </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {selectedNews?.title || "Sesli Özet"}
-            </div>
-            <div style={{ color: '#818cf8', fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px' }}>
-              AI PODCAST CANLI
-            </div>
-          </div>
-
-          <audio 
-            ref={audioRef} 
-            controls 
-            key={podcastId} 
-            src={audioUrl} 
-            style={{ height: '32px', width: isMobile ? '120px' : '200px', filter: 'invert(100%) hue-rotate(180deg) brightness(1.5)', position: 'relative', zIndex: 10000, cursor: 'pointer'}}
-          />
-
-          <button 
-            onClick={() => { setPodcastId(null); setAudioUrl(null); }} 
-            style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', transition: '0.2s' }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          {/* İlerleme çubuğu */}
+          <div
+            onClick={handleSeek}
+            style={{ position: 'relative', height: '18px', display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '10px' }}
           >
-            ✕
-          </button>
+            <div style={{ width: '100%', height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.08)', position: 'relative', transition: 'height 0.15s' }}
+              onMouseOver={e => e.currentTarget.style.height = '5px'}
+              onMouseOut={e => e.currentTarget.style.height = '3px'}
+            >
+              <div style={{
+                height: '100%', borderRadius: '2px', position: 'relative',
+                background: 'linear-gradient(90deg, #6366f1, #a78bfa)',
+                width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                transition: 'width 0.1s linear',
+              }}>
+                <div style={{ position: 'absolute', right: '-5px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'white', boxShadow: '0 0 8px rgba(99,102,241,0.8)' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Kontroller */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* 10s geri */}
+            <button onClick={() => handleSkip(-10)} title="10 saniye geri"
+              style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.65rem', fontWeight: '800', padding: '6px 8px', borderRadius: '8px', transition: '0.2s', letterSpacing: '-0.5px' }}
+              onMouseOver={e => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOut={e => e.currentTarget.style.color = '#64748b'}
+            >⟪ 10</button>
+
+            {/* Oynat / Duraklat */}
+            <button onClick={togglePlay}
+              style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #818cf8)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isPlaying ? '1rem' : '0.9rem', paddingLeft: isPlaying ? 0 : '2px', boxShadow: '0 4px 14px rgba(99,102,241,0.45)', transition: 'transform 0.15s', flexShrink: 0 }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >{isPlaying ? '⏸' : '▶'}</button>
+
+            {/* 10s ileri */}
+            <button onClick={() => handleSkip(10)} title="10 saniye ileri"
+              style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.65rem', fontWeight: '800', padding: '6px 8px', borderRadius: '8px', transition: '0.2s', letterSpacing: '-0.5px' }}
+              onMouseOver={e => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOut={e => e.currentTarget.style.color = '#64748b'}
+            >10 ⟫</button>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Süre */}
+            <span style={{ color: '#475569', fontSize: '0.68rem', fontFamily: 'monospace', letterSpacing: '0.3px' }}>
+              {formatTime(currentTime)}<span style={{ color: '#1e293b' }}> / </span>{formatTime(duration)}
+            </span>
+
+            {/* Kütüphane linki */}
+            <button onClick={() => navigate('/podcasts')}
+              style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)', color: '#6366f1', cursor: 'pointer', fontSize: '0.62rem', fontWeight: '700', padding: '5px 10px', borderRadius: '8px', transition: '0.2s', whiteSpace: 'nowrap' }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.18)'; e.currentTarget.style.color = '#818cf8'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; e.currentTarget.style.color = '#6366f1'; }}
+            >Kütüphane →</button>
+          </div>
         </div>
       )}
 
