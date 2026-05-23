@@ -14,6 +14,7 @@ function Home() {
   const [selectedNews, setSelectedNews] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [podcastStatus, setPodcastStatus] = useState('idle');
+  const [podcastAutoPlay, setPodcastAutoPlay] = useState(false);
   const [podcastId, setPodcastId] = useState(null);
   
   const [audioUrl, setAudioUrl] = useState(null);
@@ -273,10 +274,8 @@ function Home() {
         if (res.ok) {
           const data = await res.json();
           setPodcastId(data.id);
-          
-          // 🔥 ÇÖZÜM: Backend'den gelen temiz linki doğrudan kullanıyoruz
-          setAudioUrl(data.audio_url); 
-          
+          setAudioUrl(data.audio_url);
+          setPodcastAutoPlay(true);
           setPodcastStatus('ready');
           stopPolling();
           showToast("Podcast hazır!", "success");
@@ -289,6 +288,7 @@ function Home() {
     setPodcastStatus('idle');
     setPodcastId(null);
     setAudioUrl(null);
+    setPodcastAutoPlay(false);
     stopPolling();
     try {
       setRelatedNews([]);
@@ -495,7 +495,7 @@ function Home() {
           onClose={closePlayer}
           onNavigate={() => navigate('/podcasts')}
           floating
-          autoPlay
+          autoPlay={podcastAutoPlay}
           isMobile={isMobile}
         />
       )}
