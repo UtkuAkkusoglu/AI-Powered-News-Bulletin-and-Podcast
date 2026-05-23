@@ -38,6 +38,7 @@ function Sidebar({ isCollapsed = false, onToggle }) {
     { name: 'Haber Akışı', path: '/home', icon: '🏠' },
     { name: 'Podcastlerim', path: '/podcasts', icon: '🎙️' },
     { name: 'Kaydedilenler', path: '/bookmarks', icon: '🔖' },
+    { name: 'RSS Okuyucu', path: '/rss-reader', icon: '📡' },
   ];
 
   const styles = {

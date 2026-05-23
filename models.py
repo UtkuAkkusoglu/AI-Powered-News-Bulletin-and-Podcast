@@ -98,6 +98,30 @@ class UserClick(Base):
     user = relationship("User")
     category = relationship("NewsCategory")
 
+class UserRssList(Base):
+    __tablename__ = "user_rss_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+    feeds = relationship("UserRssFeed", back_populates="rss_list", cascade="all, delete-orphan")
+
+
+class UserRssFeed(Base):
+    __tablename__ = "user_rss_feeds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    list_id = Column(Integer, ForeignKey("user_rss_lists.id", ondelete="CASCADE"), nullable=False)
+    url = Column(String, nullable=False)
+    title = Column(String)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    rss_list = relationship("UserRssList", back_populates="feeds")
+
+
 class CommunityRssSource(Base):
     __tablename__ = "community_rss_sources"
 
