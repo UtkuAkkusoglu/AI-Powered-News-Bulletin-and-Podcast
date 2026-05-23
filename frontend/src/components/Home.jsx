@@ -553,6 +553,11 @@ function Home() {
                 </button>
               )}
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', margin: 0 }}>🎧 Hazırlanıyor...</p>}
+              {podcastStatus === 'ready' && audioUrl && (
+                <div style={{ width: '100%', marginBottom: '8px' }}>
+                  <AudioPlayer src={audioUrl} title={selectedNews?.title} categoryName={selectedNews?.category?.name} isMobile={isMobile} />
+                </div>
+              )}
 
               <button
                 onClick={() => handleToggleBookmark(selectedNews.id)}
