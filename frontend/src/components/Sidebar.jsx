@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
+import { useWindowSize } from '../Utils/useWindowSize';
 
 function Sidebar() {
   const location = useLocation();
@@ -8,6 +9,12 @@ function Sidebar() {
   const [username, setUsername] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const { isMobile } = useWindowSize();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isMobile) setIsMobileOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -38,7 +45,9 @@ function Sidebar() {
       backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRight: '1px solid rgba(255,255,255,0.05)',
       padding: '2rem 1.5rem', backdropFilter: 'blur(20px)', zIndex: 1000,
       display: 'flex', flexDirection: 'column',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      transform: isMobile ? (isMobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+      transition: 'transform 0.3s ease',
     },
     greetingBox: {
       background: 'rgba(255, 255, 255, 0.03)', padding: '14px 18px', borderRadius: '16px',
@@ -80,7 +89,21 @@ function Sidebar() {
 
   return (
     <>
+      {isMobile && !isMobileOpen && (
+        <button
+          onClick={() => setIsMobileOpen(true)}
+          style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 1001, background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '10px 14px', cursor: 'pointer', color: 'white', fontSize: '1.2rem', backdropFilter: 'blur(10px)', lineHeight: 1 }}
+        >
+          ☰
+        </button>
+      )}
+      {isMobile && isMobileOpen && (
+        <div onClick={() => setIsMobileOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.7)', backdropFilter: 'blur(4px)', zIndex: 999 }} />
+      )}
       <aside style={styles.sidebar}>
+        {isMobile && (
+          <button onClick={() => setIsMobileOpen(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer', zIndex: 1 }}>✕</button>
+        )}
         <div style={styles.greetingBox}>
           <span style={{ fontSize: '1.2rem' }}>👋</span>
           <span>Merhaba, <span style={{ color: '#818cf8', fontWeight: '800' }}>{username}</span></span>
@@ -90,7 +113,7 @@ function Sidebar() {
         
         <nav style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
           {menuItems.map(item => (
-            <Link key={item.path} to={item.path} style={styles.navItem(location.pathname === item.path)}>
+            <Link key={item.path} to={item.path} onClick={() => isMobile && setIsMobileOpen(false)} style={styles.navItem(location.pathname === item.path)}>
               <span style={{ fontSize: '1.3rem' }}>{item.icon}</span> {item.name}
             </Link>
           ))}

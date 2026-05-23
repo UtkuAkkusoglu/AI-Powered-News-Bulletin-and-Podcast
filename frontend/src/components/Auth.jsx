@@ -93,7 +93,7 @@ function Auth() {
       background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(16px)',
       border: '1px solid rgba(255, 255, 255, 0.1)', padding: '3rem',
       borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-      width: '420px', textAlign: 'center',
+      width: '420px', maxWidth: 'calc(100vw - 2rem)', textAlign: 'center', boxSizing: 'border-box',
     },
     input: {
       width: '100%', padding: '14px 16px', borderRadius: '12px',

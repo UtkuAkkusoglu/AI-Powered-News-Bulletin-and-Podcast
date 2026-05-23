@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchWithAuth } from '../Utils/api';
+import { useWindowSize } from '../Utils/useWindowSize';
 
 function Home() {
+  const { isMobile } = useWindowSize();
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [suggestion, setSuggestion] = useState(null);
@@ -317,10 +319,10 @@ function Home() {
       backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: '0.3s'
     }),
     floatingPlayer: {
-      position: 'fixed', bottom: '30px', left: 'calc(50% + 140px)', transform: 'translateX(-50%)',
-      width: '90%', maxWidth: '520px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 2rem', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', 
-      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto' 
+      position: 'fixed', bottom: '30px', left: isMobile ? '50%' : 'calc(50% + 140px)', transform: 'translateX(-50%)',
+      width: isMobile ? 'calc(100% - 2rem)' : '90%', maxWidth: '520px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '24px', padding: '1rem 1.5rem', zIndex: 9999, display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+      animation: 'slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto'
     }
   };
 
@@ -328,15 +330,15 @@ function Home() {
     <div style={styles.container}>
       <div style={styles.toast}>{toast.message}</div>
 
-      <div style={{ padding: '2rem 0 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+      <div style={{ padding: isMobile ? '5rem 0 2.5rem' : '2rem 0 2.5rem', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: '1.5rem', width: '100%' }}>
         <div>
-          <h1 style={{ fontSize: '3rem', fontWeight: '900', margin: 0, color: 'white' }}>Günün Özeti</h1>
+          <h1 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', margin: 0, color: 'white' }}>Günün Özeti</h1>
           <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginTop: '10px' }}>Pürüzsüz ve sana özel bir haber akışı.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <input type="text" placeholder="Gündemi tara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'white', outline: 'none', width: '300px' }} />
-          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: refreshing ? '#334155' : '#6366f1', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-            {refreshing ? '⏳ Tazeleniyor...' : '🔄 Yenile'}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
+          <input type="text" placeholder="Gündemi tara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'white', outline: 'none', width: isMobile ? '100%' : '300px', flex: isMobile ? 1 : 'none', boxSizing: 'border-box' }} />
+          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: refreshing ? '#334155' : '#6366f1', color: 'white', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {refreshing ? '⏳' : '🔄'}
           </button>
         </div>
       </div>
@@ -353,15 +355,15 @@ function Home() {
         <div style={{ width: '100%' }}>
           <div style={styles.bentoGrid}>
             {newsList.map((news, index) => (
-              <div key={news.id} onClick={() => handleNewsClick(news.id)} style={{ ...styles.newsCard, gridColumn: index === 0 ? 'span 2' : 'span 1' }}>
+              <div key={news.id} onClick={() => handleNewsClick(news.id)} style={{ ...styles.newsCard, gridColumn: index === 0 && !isMobile ? 'span 2' : 'span 1' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase' }}>Manşet</span>
-                <h3 style={{ margin: '15px 0', fontSize: index === 0 ? '2.2rem' : '1.5rem', color: 'white', fontWeight: '800' }}>{news.title}</h3>
+                <h3 style={{ margin: '15px 0', fontSize: index === 0 && !isMobile ? '2.2rem' : '1.5rem', color: 'white', fontWeight: '800' }}>{news.title}</h3>
                 <p style={{ color: '#94a3b8', lineHeight: '1.6' }}>{news.summary || "Detaylar yolda..."}</p>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', width: '100%' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', gap: '1rem', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', width: '100%' }}>
             <div style={{ color: '#64748b' }}>{totalCount} haber — Sayfa {page}/{totalPages}</div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <span style={{ color: '#64748b', fontSize: '0.9rem', marginRight: '10px' }}>Sayfa Başı:</span>
@@ -399,7 +401,7 @@ function Home() {
             controls 
             key={podcastId} 
             src={audioUrl} 
-            style={{ height: '32px', width: '200px', filter: 'invert(100%) hue-rotate(180deg) brightness(1.5)', position: 'relative', zIndex: 10000, cursor: 'pointer'}} 
+            style={{ height: '32px', width: isMobile ? '120px' : '200px', filter: 'invert(100%) hue-rotate(180deg) brightness(1.5)', position: 'relative', zIndex: 10000, cursor: 'pointer'}}
           />
 
           <button 

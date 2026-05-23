@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
+import { useWindowSize } from '../Utils/useWindowSize';
 
 function Podcast() {
   const [podcasts, setPodcasts] = useState([]);
@@ -9,6 +10,7 @@ function Podcast() {
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
+  const { isMobile } = useWindowSize();
 
   // --- MODERN BİLDİRİM SİSTEMİ (TOAST) ---
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -90,7 +92,7 @@ function Podcast() {
       backdropFilter: 'blur(12px)', padding: '12px 24px', borderRadius: '16px', fontWeight: '600',
       transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', opacity: toast.show ? 1 : 0, zIndex: 9999,
     },
-    headerWrapper: { padding: '4rem 3rem 3rem', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' },
+    headerWrapper: { padding: isMobile ? '5rem 1rem 1.5rem' : '4rem 3rem 3rem', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' },
     card: {
       background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px',
       padding: '2rem', position: 'relative', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
@@ -138,7 +140,7 @@ function Podcast() {
         <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginTop: '10px' }}>Yapay zeka ile üretilen kişisel ses dosyaların.</p>
       </div>
 
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 3rem' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: isMobile ? '0 1rem' : '0 3rem' }}>
         {loading ? (
           <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '4rem', fontSize: '1.2rem' }}>Kasetler sarılıyor...</p>
         ) : (
@@ -200,7 +202,7 @@ function Podcast() {
 
             {/* --- SAYFALAMA ALANI --- */}
             {podcasts.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '2rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', gap: '1rem', padding: '3rem 0 10rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '2rem' }}>
                 <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Toplam {totalCount} podcast — Sayfa {page}/{totalPages}</div>
                 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

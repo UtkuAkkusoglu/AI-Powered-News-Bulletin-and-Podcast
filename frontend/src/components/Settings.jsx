@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
+import { useWindowSize } from '../Utils/useWindowSize';
 
 function Settings() {
   const navigate = useNavigate();
+  const { isMobile } = useWindowSize();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [allCategories, setAllCategories] = useState([]);
@@ -127,7 +129,7 @@ function Settings() {
   const styles = {
     container: { backgroundColor: '#020617', color: '#f1f5f9', minHeight: '100vh', fontFamily: "'Inter', sans-serif" },
     main: { maxWidth: '1100px', margin: '0 auto', padding: '4rem 2rem' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px' },
+    grid: { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '30px' },
     section: { 
       background: 'rgba(15, 23, 42, 0.6)', 
       border: '1px solid rgba(255,255,255,0.05)', 
@@ -162,13 +164,13 @@ function Settings() {
       <div style={styles.toast}><span>{toast.type === 'success' ? '✨' : '⚠️'}</span> {toast.message}</div>
       
       <div style={styles.main}>
-        <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '3rem', letterSpacing: '-1.5px', textAlign: 'left' }}>Ayarlar</h1>
+        <h1 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', marginBottom: '3rem', letterSpacing: '-1.5px', textAlign: 'left' }}>Ayarlar</h1>
         
         <div style={styles.grid}>
           {/* PROFİL BİLGİSİ */}
-          <div style={{ ...styles.section, gridColumn: 'span 2', alignItems: 'flex-start', textAlign: 'left' }}>
+          <div style={{ ...styles.section, gridColumn: isMobile ? 'auto' : 'span 2', alignItems: 'flex-start', textAlign: 'left' }}>
             <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.6rem' }}>👤 Profil Bilgileri</h3>
-            <div style={{ display: 'flex', gap: '60px', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '1.5rem' : '60px', width: '100%' }}>
               <div><label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>Kullanıcı Adı</label><p style={{ margin: '8px 0', fontSize: '1.3rem', fontWeight: '600' }}>{username}</p></div>
               <div><label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>E-posta Adresi</label><p style={{ margin: '8px 0', fontSize: '1.3rem', fontWeight: '600' }}>{email}</p></div>
             </div>
@@ -217,7 +219,7 @@ function Settings() {
           </div>
 
           {/* YENİ: TEHLİKE BÖLGESİ (HESAP SİLME) */}
-          <div style={{ ...styles.section, gridColumn: 'span 2', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)', alignItems: 'center' }}>
+          <div style={{ ...styles.section, gridColumn: isMobile ? 'auto' : 'span 2', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)', alignItems: 'center' }}>
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.6rem', color: '#ef4444' }}>⚠️ Tehlike Bölgesi</h3>
             <p style={{ color: '#94a3b8', marginBottom: '2rem', maxWidth: '600px', fontSize: '1.05rem', lineHeight: '1.6' }}>
               Hesabını sildiğinde haber akışın, podcastlerin ve tüm verilerin <strong>kalıcı olarak</strong> silinecektir. Bu işlem geri alınamaz.
