@@ -89,16 +89,16 @@ function Podcast() {
     setPage(1);
   };
 
-  // 🎯 UTKU (Oynat / Durdur Yönetim Fonksiyonu):
+  // 🎯 UTKU: İstediğin gibi durdur olayını tamamen çöpe attık reis. "Kapat" mantığı çalışıyor.
   const handlePlayToggle = (pod) => {
     const isCurrentTrack = track?.src === pod.audio_url;
 
     if (isCurrentTrack) {
-      // Eğer zaten çalıyorsa ve basıldıysa oynatıcıyı kapat/sıfırla reis
+      // ✕ Kapat butonuna basılmış gibi merkezi context'i NULL yapıyoruz, alt player tamamen kapanıyor!
       setTrack(null);
-      showToast("Podcast durduruldu.", "success");
+      showToast("Podcast kapatıldı.", "success");
     } else {
-      // Çalmıyorsa merkezi context'e yükle, alt taraftaki global player asenkron tetiklensin
+      // Eğer başka bir şarkı çalıyorsa ya da boşsa, sıfırdan temizce alt global player'a gönderiyoruz
       setTrack(pod.audio_url, pod.title, 'Podcast', true);
       showToast("Podcast kütüphaneden oynatılıyor...", "success");
     }
@@ -113,11 +113,11 @@ function Podcast() {
       padding: '1.5rem 2rem', position: 'relative', transition: 'all 0.3s ease',
       display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '20px'
     },
-    // 🎯 Dinamik buton stili (Durdur durumunda duruma özel kırmızımsı/indigo tonda parlayabilir)
+    // 🎯 UTKU: Kapat moduna geçtiği için renk geçişini jilet gibi kırmızı tonuna çektik reis
     playBtn: (isCurrent) => ({
-      background: isCurrent ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+      background: isCurrent ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
       color: 'white', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', transition: '0.2s',
-      boxShadow: isCurrent ? '0 6px 16px rgba(239, 68, 68, 0.25)' : '0 6px 16px rgba(99, 102, 241, 0.25)', minWidth: '110px'
+      boxShadow: isCurrent ? '0 6px 16px rgba(220, 38, 38, 0.3)' : '0 6px 16px rgba(99, 102, 241, 0.25)', minWidth: '110px'
     }),
     navBtn: { background: 'rgba(30, 41, 59, 0.6)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '12px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', minWidth: '110px' },
     pageNum: (isActive) => ({ padding: '8px 16px', borderRadius: '12px', border: 'none', backgroundColor: isActive ? '#6366f1' : 'rgba(30, 41, 59, 0.5)', color: 'white', cursor: 'pointer', fontWeight: isActive ? '700' : '400', transition: 'all 0.3s' }),
@@ -152,7 +152,7 @@ function Podcast() {
               </div>
             ) : (
               podcasts.map((pod) => {
-                // 🎯 UTKU: Bu karttaki şarkı şu an alttaki global player'da çalıyor mu kontrolü
+                // 🎯 UTKU: Eğer bu satırdaki ses backend linki, şu an hafızadaki aktif track ile birebir eşleşiyorsa aktiftir.
                 const isCurrent = track?.src === pod.audio_url;
 
                 return (
@@ -188,12 +188,12 @@ function Podcast() {
                       </div>
                     </div>
 
-                    {/* SAĞ KISIM: 2 Buton (Oynat/Durdur ve Haberi Gör) */}
+                    {/* SAĞ KISIM: İstenen 2 Buton (Kapat / Oynat ve Haberi Gör) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-start' : 'flex-end', paddingRight: isMobile ? '0' : '40px' }}>
                       
-                      {/* 🎯 BURASI DEĞİŞTİ REİS: Duruma göre 'Durdur' veya 'Oynat' yazıyor ve farklı renk alıyor */}
+                      {/* 🎯 UTKU: İstediğin gibi buton metni "✕ Kapat" oldu reis. Basıldığı saniyede alt paneli yok eder! */}
                       <button onClick={() => handlePlayToggle(pod)} style={styles.playBtn(isCurrent)} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
-                        {isCurrent ? '⏸ Durdur' : '▶ Oynat'}
+                        {isCurrent ? '✕ Kapat' : '▶ Oynat'}
                       </button>
 
                       {pod.news_id ? (
