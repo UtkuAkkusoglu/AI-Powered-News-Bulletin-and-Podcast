@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 import AudioPlayer from './AudioPlayer';
+import { usePlayer } from '../contexts/PlayerContext';
 
 function Podcast() {
   const [podcasts, setPodcasts] = useState([]);
@@ -12,6 +13,7 @@ function Podcast() {
   const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
   const { isMobile } = useWindowSize();
+  const { track, setTrack } = usePlayer();
 
   // --- MODERN BİLDİRİM SİSTEMİ (TOAST) ---
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -166,25 +168,53 @@ function Podcast() {
                     🗑️
                   </button>
 
-                  {/* 🔥 ÜST KISIM: İkon ve Metinler (Yan Yana) */}
+                  {/* Üst kısım: ikon + meta */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
-                    <div style={{ 
-                      width: '50px', height: '50px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
-                      borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0
+                    <div style={{
+                      width: '50px', height: '50px', background: track?.src === pod.audio_url ? 'linear-gradient(135deg,#10b981,#34d399)' : 'linear-gradient(135deg, #6366f1, #818cf8)',
+                      borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0,
+                      boxShadow: track?.src === pod.audio_url ? '0 0 20px rgba(16,185,129,0.4)' : 'none', transition: '0.3s'
                     }}>
-                      🎙️
+                      {track?.src === pod.audio_url ? '🔊' : '🎙️'}
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}> {/* Çöp kutusu ile çakışmamak için padding eklendi */}
-                      <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>Kayıt Arşivi</span>
-                      {/* 🔥 whiteSpace: nowrap kaldırıldı, başlık artık tam okunabiliyor */}
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '900', color: track?.src === pod.audio_url ? '#10b981' : '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {track?.src === pod.audio_url ? 'Şu An Çalıyor' : 'Kayıt Arşivi'}
+                      </span>
                       <h3 style={{ margin: '8px 0', fontSize: '1.4rem', color: 'white', lineHeight: '1.4' }}>{pod.title}</h3>
                       <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{new Date(pod.created_at).toLocaleString('tr-TR')}</p>
                     </div>
                   </div>
 
-                  {/* Custom Audio Player */}
-                  <AudioPlayer src={pod.audio_url} isMobile={isMobile} />
+                  {/* Inline player if this track is active */}
+                  {track?.src === pod.audio_url && (
+                    <AudioPlayer src={pod.audio_url} isMobile={isMobile} />
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {track?.src !== pod.audio_url && (
+                      <button
+                        onClick={() => setTrack(pod.audio_url, pod.title, 'Podcast')}
+                        style={{ flex: 1, minWidth: '120px', padding: '12px 20px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 6px 16px -4px rgba(99,102,241,0.4)' }}
+                        onMouseOver={e => e.currentTarget.style.opacity = '0.85'}
+                        onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                      >
+                        ▶ Oynat
+                      </button>
+                    )}
+                    {pod.news_id && (
+                      <button
+                        onClick={() => navigate(`/home?open=${pod.news_id}`)}
+                        style={{ flex: 1, minWidth: '120px', padding: '12px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s' }}
+                        onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#818cf8'; }}
+                        onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+                      >
+                        📰 Haberi Gör
+                      </button>
+                    )}
+                  </div>
 
                 </div>
               ))

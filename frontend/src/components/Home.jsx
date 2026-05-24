@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 import AudioPlayer from './AudioPlayer';
+import { usePlayer } from '../contexts/PlayerContext';
 
 function Home() {
   const { isMobile } = useWindowSize();
@@ -15,9 +16,8 @@ function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [podcastStatus, setPodcastStatus] = useState('idle');
   const [podcastAutoPlay, setPodcastAutoPlay] = useState(false);
-  const [podcastId, setPodcastId] = useState(null);
-  
   const [audioUrl, setAudioUrl] = useState(null);
+  const { setTrack } = usePlayer();
   const pollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -121,11 +121,6 @@ function Home() {
 
   const handleSearch = () => { setPage(1); fetchNews(searchTerm, 1, pageSize, activeCategoryId); };
 
-  const closePlayer = () => {
-    setPodcastId(null);
-    setAudioUrl(null);
-    setPodcastStatus('idle');
-  };
 
   const readingTime = (text) => {
     if (!text) return null;
@@ -267,17 +262,17 @@ function Home() {
     }
   };
 
-  const startPolling = (newsId) => {
+  const startPolling = (newsId, newsTitle = '', newsCategory = '') => {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/by-news/${newsId}`);
         if (res.ok) {
           const data = await res.json();
-          setPodcastId(data.id);
           setAudioUrl(data.audio_url);
           setPodcastAutoPlay(true);
           setPodcastStatus('ready');
+          setTrack(data.audio_url, newsTitle, newsCategory);
           stopPolling();
           showToast("Podcast hazır!", "success");
         }
@@ -287,7 +282,6 @@ function Home() {
 
   const handleNewsClick = async (newsId) => {
     setPodcastStatus('idle');
-    setPodcastId(null);
     setAudioUrl(null);
     setPodcastAutoPlay(false);
     stopPolling();
@@ -305,13 +299,14 @@ function Home() {
         fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/${newsId}/feedback/mine`),
       ]);
 
-      if (detailResponse.ok) setSelectedNews(await detailResponse.json());
+      let newsDetail = null;
+      if (detailResponse.ok) { newsDetail = await detailResponse.json(); setSelectedNews(newsDetail); }
 
       if (podRes.ok) {
         const podData = await podRes.json();
-        setPodcastId(podData.id);
         setAudioUrl(podData.audio_url);
         setPodcastStatus('ready');
+        setTrack(podData.audio_url, newsDetail?.title, newsDetail?.category?.name);
       }
 
       if (bookmarkRes.ok) {
@@ -369,7 +364,7 @@ function Home() {
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/podcast/generate/${selectedNews.id}`, { method: 'POST' });
       if (res.ok) {
-        startPolling(selectedNews.id); 
+        startPolling(selectedNews.id, selectedNews.title, selectedNews.category?.name);
       } else {
         setPodcastStatus('idle');
       }
@@ -486,18 +481,6 @@ function Home() {
             </div>
           </div>
         </div>
-      )}
-
-      {!selectedNews && podcastId && podcastStatus === 'ready' && audioUrl && (
-        <AudioPlayer
-          src={audioUrl}
-          title={selectedNews?.title}
-          categoryName={selectedNews?.category?.name}
-          onClose={closePlayer}
-          onNavigate={() => navigate('/podcasts')}
-          floating
-          isMobile={isMobile}
-        />
       )}
 
       {selectedNews && (

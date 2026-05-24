@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
 import AudioPlayer from './AudioPlayer';
+import { usePlayer } from '../contexts/PlayerContext';
 
 function RssReader() {
   const { isMobile } = useWindowSize();
@@ -31,6 +32,7 @@ function RssReader() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [podcastPollTitle, setPodcastPollTitle] = useState(null);
   const [podcastCache, setPodcastCache] = useState({});
+  const { setTrack } = usePlayer();
 
   // Translation
   const [activeTranslation, setActiveTranslation] = useState(null);
@@ -62,6 +64,7 @@ function RssReader() {
           setAudioUrl(data.audio_url);
           setPodcastStatus('ready');
           setPodcastCache(prev => ({ ...prev, [podcastPollTitle]: data.audio_url }));
+          setTrack(data.audio_url, podcastPollTitle, selectedArticle?.feed_title);
           showToast('Podcast hazır! 🎧', 'success');
         }
       } catch {}
@@ -254,6 +257,7 @@ function RssReader() {
         setAudioUrl(data.audio_url);
         setPodcastStatus('ready');
         setPodcastCache(prev => ({ ...prev, [selectedArticle.title]: data.audio_url }));
+        setTrack(data.audio_url, selectedArticle.title, selectedArticle.feed_title);
       } else {
         setPodcastStatus('processing');
         setPodcastPollTitle(selectedArticle.title);
