@@ -11,6 +11,8 @@
 
 A **12-factor, cloud-native** application that scrapes real-time Turkish news from 15 RSS sources, summarizes each article using **Gemini 2.5 Flash**, generates personalized audio podcasts via **Google Text-to-Speech**, and serves everything through a responsive React frontend — all running as isolated Docker services on GCP.
 
+> **Live Demo:** [https://news-and-podcast-frontend-861840374112.europe-west3.run.app](https://news-and-podcast-frontend-861840374112.europe-west3.run.app)
+
 ---
 
 ## Table of Contents
