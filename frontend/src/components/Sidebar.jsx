@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../Utils/api';
 import { useWindowSize } from '../Utils/useWindowSize';
@@ -12,10 +12,32 @@ function Sidebar({ isCollapsed = false, onToggle }) {
   const { isMobile } = useWindowSize();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  const dropdownRef = useRef(null);
+  const accountBtnRef = useRef(null);
+
   // Close menu when sidebar toggles to prevent layout glitches
   useEffect(() => {
     setIsMenuOpen(false);
   }, [isCollapsed]);
+
+  // Handle snapping shut on clicks outside dropdown and toggle button
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        isMenuOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        accountBtnRef.current &&
+        !accountBtnRef.current.contains(event.target)
+      ) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     if (!isMobile) setIsMobileOpen(false);
@@ -104,12 +126,6 @@ function Sidebar({ isCollapsed = false, onToggle }) {
 
   return (
     <>
-      {isMenuOpen && (
-        <div 
-          onClick={() => setIsMenuOpen(false)} 
-          style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
-        />
-      )}
       {isMobile && !isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
@@ -156,7 +172,7 @@ function Sidebar({ isCollapsed = false, onToggle }) {
 
         <div style={{ position: 'relative', marginTop: 'auto' }}>
           {isMenuOpen && (
-            <div style={styles.dropdown}>
+            <div ref={dropdownRef} style={styles.dropdown}>
               <button title="Ayarlar" onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} style={{ background: 'transparent', color: 'white', border: 'none', padding: '14px', textAlign: 'center', cursor: 'pointer', fontWeight: '600', borderRadius: '10px', transition: '0.2s', display: 'flex', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: '8px', alignItems: 'center' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
                 <span>⚙️</span> {!isCollapsed && <span>Ayarlar</span>}
               </button>
@@ -165,7 +181,7 @@ function Sidebar({ isCollapsed = false, onToggle }) {
               </button>
             </div>
           )}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} title={isCollapsed ? 'Hesabım' : ''} style={styles.accountBtn}>
+          <button ref={accountBtnRef} onClick={() => setIsMenuOpen(!isMenuOpen)} title={isCollapsed ? 'Hesabım' : ''} style={styles.accountBtn}>
             {isCollapsed ? (
               <span style={{ fontSize: '1.2rem' }}>👤</span>
             ) : (

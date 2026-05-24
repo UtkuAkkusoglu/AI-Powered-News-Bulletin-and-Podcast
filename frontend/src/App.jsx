@@ -14,16 +14,24 @@ import { PlayerProvider, usePlayer } from './contexts/PlayerContext';
 import { useEffect } from 'react';
 
 function RootRedirect() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      navigate('/home', { replace: true });
-    } else {
-      navigate('/auth', { replace: true });
-    }
-  }, [navigate]);
-  return null;
+  const token = localStorage.getItem('token');
+  return token ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />;
+}
+
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/auth" replace />;
+  }
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const token = localStorage.getItem('token');
+  if (token) {
+    return <Navigate to="/home" replace />;
+  }
+  return children;
 }
 
 function GlobalPlayer() {
@@ -88,9 +96,30 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="*" element={<AppLayout />} />
+          <Route 
+            path="/auth" 
+            element={
+              <PublicRoute>
+                <Auth />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/onboarding" 
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="*" 
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </BrowserRouter>
     </PlayerProvider>
