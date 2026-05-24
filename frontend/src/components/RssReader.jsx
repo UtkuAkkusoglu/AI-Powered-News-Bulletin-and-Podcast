@@ -664,16 +664,9 @@ function RssReader() {
               </p>
             </div>
 
-            {/* Audio player */}
+            {/* Podcast ready info */}
             {podcastStatus === 'ready' && audioUrl && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <AudioPlayer
-                  src={audioUrl}
-                  title={selectedArticle.title}
-                  categoryName={selectedArticle.feed_title}
-                  isMobile={isMobile}
-                />
-              </div>
+              <p style={{ color: '#10b981', fontWeight: 'bold', margin: '0 0 1.5rem', fontSize: '0.9rem' }}>🎧 Podcast hazır — aşağıdaki oynatıcıdan dinleyebilirsin.</p>
             )}
 
             {/* Actions */}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -28,6 +28,53 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   const [duration, setDuration] = useState(0);
   const [speedIdx, setSpeedIdx] = useState(2); // default 1×
   const speed = SPEEDS[speedIdx];
+
+  // ── Drag state for floating mode ──
+  const [dragPos, setDragPos] = useState(null); // { x, y } when user has dragged
+  const isDragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const wrapRef = useRef(null);
+
+  const handleDragStart = useCallback((clientX, clientY) => {
+    if (!floating || !wrapRef.current) return;
+    isDragging.current = true;
+    const rect = wrapRef.current.getBoundingClientRect();
+    dragOffset.current = { x: clientX - rect.left, y: clientY - rect.top };
+    document.body.style.userSelect = 'none';
+  }, [floating]);
+
+  const handleDragMove = useCallback((clientX, clientY) => {
+    if (!isDragging.current) return;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, clientX - dragOffset.current.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 60, clientY - dragOffset.current.y));
+    setDragPos({ x: newX, y: newY });
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    isDragging.current = false;
+    document.body.style.userSelect = '';
+  }, []);
+
+  useEffect(() => {
+    if (!floating) return;
+    const onMouseMove = (e) => handleDragMove(e.clientX, e.clientY);
+    const onTouchMove = (e) => { if (e.touches[0]) handleDragMove(e.touches[0].clientX, e.touches[0].clientY); };
+    const onEnd = () => handleDragEnd();
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+  }, [floating, handleDragMove, handleDragEnd]);
+
+  // Reset drag position when src changes (new track)
+  useEffect(() => { setDragPos(null); }, [src]);
 
   // Stop audio on unmount so no orphaned playback continues
   useEffect(() => {
@@ -103,11 +150,9 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
-  const wrapStyle = floating ? {
+  // Build wrapper style: if user has dragged, use absolute positioning via top/left
+  const baseFloating = {
     position: 'fixed',
-    bottom: '24px',
-    left: isMobile ? '50%' : 'calc(50% + 140px)',
-    transform: 'translateX(-50%)',
     width: isMobile ? 'calc(100% - 2rem)' : '460px',
     background: 'rgba(8, 12, 24, 0.97)',
     backdropFilter: 'blur(28px) saturate(180%)',
@@ -116,14 +161,21 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
     padding: '16px 20px',
     zIndex: 9999,
     boxShadow: '0 28px 56px -12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.04)',
-  } : {
-    width: '100%',
-    background: 'rgba(2, 6, 23, 0.5)',
-    border: '1px solid rgba(99, 102, 241, 0.12)',
-    borderRadius: '16px',
-    padding: '14px 16px',
-    boxSizing: 'border-box',
+    transition: isDragging.current ? 'none' : 'box-shadow 0.3s',
   };
+
+  const wrapStyle = floating
+    ? dragPos
+      ? { ...baseFloating, left: `${dragPos.x}px`, top: `${dragPos.y}px` }
+      : { ...baseFloating, bottom: '24px', left: isMobile ? '50%' : 'calc(50% + 140px)', transform: 'translateX(-50%)' }
+    : {
+        width: '100%',
+        background: 'rgba(2, 6, 23, 0.5)',
+        border: '1px solid rgba(99, 102, 241, 0.12)',
+        borderRadius: '16px',
+        padding: '14px 16px',
+        boxSizing: 'border-box',
+      };
 
   const iconBtn = {
     background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer',
@@ -132,12 +184,16 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   };
 
   return (
-    <div style={wrapStyle}>
+    <div ref={wrapRef} style={wrapStyle}>
       <audio ref={audioRef} src={src} style={{ display: 'none' }} />
 
-      {/* Header — only in floating mode */}
+      {/* Header — only in floating mode, acts as drag handle */}
       {floating && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', cursor: 'grab' }}
+          onMouseDown={(e) => { if (e.target.tagName !== 'BUTTON') handleDragStart(e.clientX, e.clientY); }}
+          onTouchStart={(e) => { if (e.target.tagName !== 'BUTTON' && e.touches[0]) handleDragStart(e.touches[0].clientX, e.touches[0].clientY); }}
+        >
           <div style={{
             width: '40px', height: '40px', flexShrink: 0,
             background: 'linear-gradient(135deg, #6366f1, #a78bfa)',
@@ -253,3 +309,4 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
 }
 
 export default AudioPlayer;
+

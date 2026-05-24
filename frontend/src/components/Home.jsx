@@ -558,9 +558,7 @@ function Home() {
               )}
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', margin: 0 }}>🎧 Hazırlanıyor...</p>}
               {podcastStatus === 'ready' && audioUrl && (
-                <div style={{ width: '100%', marginBottom: '8px' }}>
-                  <AudioPlayer src={audioUrl} title={selectedNews?.title} categoryName={selectedNews?.category?.name} isMobile={isMobile} autoPlay={podcastAutoPlay} />
-                </div>
+                <p style={{ color: '#10b981', fontWeight: 'bold', margin: 0 }}>🎧 Podcast hazır — aşağıdaki oynatıcıdan dinleyebilirsin.</p>
               )}
 
               <button
