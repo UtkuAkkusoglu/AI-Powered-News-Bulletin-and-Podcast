@@ -149,7 +149,7 @@ Before you begin, make sure you have:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/AI-Powered-News-Bulletin-and-Podcast.git
+git clone https://github.com/UtkuAkkusoglu/AI-Powered-News-Bulletin-and-Podcast.git
 cd AI-Powered-News-Bulletin-and-Podcast
 ```
 
