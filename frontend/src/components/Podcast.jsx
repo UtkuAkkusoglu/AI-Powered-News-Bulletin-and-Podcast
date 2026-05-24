@@ -13,7 +13,7 @@ function Podcast() {
   const navigate = useNavigate();
   const { isMobile } = useWindowSize();
   
-  // 🎯 UTKU: Merkezi PlayerContext'ten track (şu an çalan) ve setTrack (çalma komutu) alınıyor
+  // 🎯 UTKU: Cihan'ın Context yapısı (track nesnesi ve setTrack fonksiyonu)
   const { track, setTrack } = usePlayer();
 
   // --- MODERN BİLDİRİM SİSTEMİ (TOAST) ---
@@ -66,9 +66,8 @@ function Podcast() {
         method: 'DELETE',
       });
       if (response.ok) {
-        // Eğer silinen podcast o an altta çalıyorsa player'ı da temizle reis
         if (track?.src === podcasts.find(p => p.id === podcastToDelete)?.audio_url) {
-          setTrack(null);
+          setTrack(null, '', '', false);
         }
         setPodcasts(prev => prev.filter(p => p.id !== podcastToDelete));
         setTotalCount(prev => prev - 1);
@@ -89,23 +88,19 @@ function Podcast() {
     setPage(1);
   };
 
-  // 🎯 UTKU: İşte o sihirli kapatma orkestrasyonu burası reis!
+  // 🎯 UTKU: Cihan'ın setTrack parametre yapısına milimetrik eşleme yapıldı!
   const handlePlayToggle = (pod) => {
     const isCurrentTrack = track?.src === pod.audio_url;
 
     if (isCurrentTrack) {
-      // ✕ Üstteki "Kapat" butonuna basınca alt taraftaki o asılı oynatıcının çarpı (✕) butonuna basılmış gibi
-      // tüm context state'ini sıfırlıyoruz. Alt player şak diye ekrandan yok oluyor reis!
-      setTrack({ src: null, title: '', categoryName: '', autoPlay: false });
+      // ✕ Üstteki "Kapat" butonuna basınca her şeyi null/false geçiyoruz.
+      // AudioPlayer bunu yakalayıp alt paneli şak diye ekrandan silecek!
+      setTrack(null, '', '', false);
       showToast("Podcast tamamen kapatıldı.", "success");
     } else {
-      // Çalmıyorsa taze parametrelerle alt global oynatıcıyı ayağa kaldırıyoruz
-      setTrack({
-        src: pod.audio_url,
-        title: pod.title,
-        categoryName: pod.news_id ? 'Akış' : 'RSS',
-        autoPlay: true
-      });
+      // 🎯 DOĞRU PARAMETRE SIRALAMASI: url, title, categoryName, autoPlay
+      const categoryLabel = pod.news_id ? 'Akış' : 'RSS';
+      setTrack(pod.audio_url, pod.title, categoryLabel, true);
       showToast("Podcast kütüphaneden oynatılıyor...", "success");
     }
   };
@@ -119,7 +114,6 @@ function Podcast() {
       padding: '1.5rem 2rem', position: 'relative', transition: 'all 0.3s ease',
       display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '20px'
     },
-    // 🎯 UTKU: Kapat moduna geçtiği için renk geçişini jilet gibi kırmızı tonuna çektik reis
     playBtn: (isCurrent) => ({
       background: isCurrent ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
       color: 'white', border: 'none', padding: '10px 22px', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', transition: '0.2s',
@@ -158,7 +152,6 @@ function Podcast() {
               </div>
             ) : (
               podcasts.map((pod) => {
-                // 🎯 UTKU: Eğer bu satırdaki ses backend linki, şu an hafızadaki aktif track ile birebir eşleşiyorsa aktiftir.
                 const isCurrent = track?.src === pod.audio_url;
 
                 return (
@@ -194,7 +187,7 @@ function Podcast() {
                       </div>
                     </div>
 
-                    {/* SAĞ KISIM: İstenen 2 Buton (✕ Kapat / ▶ Oynat ve Haberi Gör) */}
+                    {/* SAĞ KISIM: 2 Buton (✕ Kapat / ▶ Oynat ve Haberi Gör) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-start' : 'flex-end', paddingRight: isMobile ? '0' : '40px' }}>
                       
                       <button onClick={() => handlePlayToggle(pod)} style={styles.playBtn(isCurrent)} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
