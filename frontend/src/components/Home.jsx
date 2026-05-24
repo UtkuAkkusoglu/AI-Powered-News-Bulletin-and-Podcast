@@ -33,6 +33,8 @@ function Home() {
   const activeCategoryIdRef = useRef(activeCategoryId);
   // 🛡️ Havada giden büyük POST yenileme isteğini kontrol etmek için yeni Ref
   const refreshAbortControllerRef = useRef(null);
+  // 🛡️ Refresh polling interval ref - survives category changes
+  const refreshPollRef = useRef(null);
 
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
   const [relatedNews, setRelatedNews] = useState([]);
@@ -73,6 +75,16 @@ function Home() {
     };
     loadUser();
     loadTrending();
+  }, []);
+
+  // Cleanup refresh polling on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshPollRef.current) {
+        clearInterval(refreshPollRef.current);
+        refreshPollRef.current = null;
+      }
+    };
   }, []);
 
   // 🔄 Kategori veya sayfa değiştiğinde eski havada kalan istekleri Abort et
@@ -159,6 +171,7 @@ function Home() {
     }
   };
   
+
   const handleCategoryChange = (catId) => { 
     // Ref'i anında en güncel kategori ID'si ile eşitliyoruz, böylece herhangi bir döngü veya asenkron işlem içinde doğru değeri yakalayabiliriz
     activeCategoryIdRef.current = catId;
@@ -169,10 +182,8 @@ function Home() {
       refreshAbortControllerRef.current = null;
     }
 
-    // 🛑 Kullanıcı kategori değiştirdiği saniyede canlı akış döngüsünü durduruyoruz
-    if (refreshing) {
-      setRefreshing(false);
-    }
+    // ⚠️ refreshing durumunu SIFIRLAMIYORUZ - scraping arka planda devam ediyor.
+    // Buton disabled kalmalı, kullanıcı başka kategoriye geçse bile.
     setActiveCategoryId(catId); 
     setPage(1); 
   };
@@ -185,12 +196,15 @@ function Home() {
     setPage(1); 
     showToast("Gündem tazeleniyor, canlı akış başladı...", "success");
 
-    // 📸 Tazeleme işleminin başladığı andaki kategori ID'sinin anlık görüntüsü (Snapshot)
-    const currentSnapshotCategoryId = activeCategoryId;
-
     // Havada asılı duran eski bir yenileme sinyali varsa önceden tedbir amaçlı iptal et
     if (refreshAbortControllerRef.current) {
       refreshAbortControllerRef.current.abort();
+    }
+
+    // Eski polling'i temizle
+    if (refreshPollRef.current) {
+      clearInterval(refreshPollRef.current);
+      refreshPollRef.current = null;
     }
 
     // Büyük yenileme işlemi (POST) için taze bir AbortController oluşturuyoruz
@@ -203,12 +217,6 @@ function Home() {
         // Ref'ten oku: interval callback stale closure'dan etkilenmez, her tick'te güncel değeri alır
         const currentCatId = activeCategoryIdRef.current;
 
-        // 🎯 Eğer kullanıcı o esnada başka kategoriye zıpladıysa, bu döngü kendini imha etsin!
-        if (currentSnapshotCategoryId !== currentCatId) {
-          clearInterval(poll);
-          return;
-        }
-
         // 📡 Redis flag'i üzerinden scraper'ın gerçek durumunu sorgula
         const statusRes = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh/status`);
         if (statusRes.ok) {
@@ -217,9 +225,10 @@ function Home() {
           // Eğer Redis flag'i silindiyse scraper bitti demektir
           if (statusData.status === "idle") {
             clearInterval(poll);
+            refreshPollRef.current = null;
             setRefreshing(false);
             fetchNews(searchTerm, 1, pageSize, activeCategoryIdRef.current);
-            showToast("Gündem başarıyla güncellendi!", "success");
+            showToast("✅ Gündem başarıyla güncellendi! Yeni haberler listelendi.", "success");
             return;
           }
         }
@@ -240,6 +249,8 @@ function Home() {
       } catch (_) {}
     }, 4000);
 
+    refreshPollRef.current = poll;
+
     try {
       // 📡 Büyük POST isteği yola çıkıyor (Sadece görevi tetikleyip hemen dönecek)
       await fetchWithAuth(`${import.meta.env.VITE_API_URL}/news/refresh`, { 
@@ -247,10 +258,14 @@ function Home() {
         signal: refreshController.signal
       });
     } catch (error) {
-      // Eğer kullanıcı kategori değiştirdiği için istek iptal edildiyse her şeyi temizle!
-      if (error.name === 'AbortError') {
+      // Eğer kullanıcı kategori değiştirdiği için istek iptal edildiyse POST'u iptal et
+      // ama scraping arka planda devam edebilir, polling hâlâ kontrol eder
+      if (error.name !== 'AbortError') {
+        // Gerçek bir hata oluştuysa polling'i de durdur
         clearInterval(poll);
+        refreshPollRef.current = null;
         setRefreshing(false);
+        showToast("Güncelleme sırasında bir hata oluştu.", "error");
       }
     }
   };
@@ -427,9 +442,10 @@ function Home() {
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
           <input type="text" placeholder="Gündemi tara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'white', outline: 'none', width: isMobile ? '100%' : '300px', flex: isMobile ? 1 : 'none', boxSizing: 'border-box' }} />
-          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: refreshing ? '#334155' : '#6366f1', color: 'white', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            {refreshing ? '⏳' : '🔄'}
+          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: refreshing ? '#334155' : '#6366f1', color: 'white', fontWeight: 'bold', cursor: refreshing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden' }}>
+            <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
           </button>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
 

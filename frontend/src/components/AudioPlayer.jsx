@@ -29,6 +29,17 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   const [speedIdx, setSpeedIdx] = useState(2); // default 1×
   const speed = SPEEDS[speedIdx];
 
+  // Stop audio on unmount so no orphaned playback continues
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+      }
+    };
+  }, []);
+
   // Reload when src changes
   useEffect(() => {
     setCurrentTime(0);

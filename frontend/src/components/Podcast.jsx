@@ -14,7 +14,7 @@ function Podcast() {
   const { isMobile } = useWindowSize();
   
   // 🎯 UTKU: Cihan'ın Context yapısı (track nesnesi ve setTrack fonksiyonu)
-  const { track, setTrack } = usePlayer();
+  const { track, setTrack, clearTrack } = usePlayer();
 
   // --- MODERN BİLDİRİM SİSTEMİ (TOAST) ---
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -93,9 +93,9 @@ function Podcast() {
     const isCurrentTrack = track?.src === pod.audio_url;
 
     if (isCurrentTrack) {
-      // ✕ Üstteki "Kapat" butonuna basınca her şeyi null/false geçiyoruz.
-      // AudioPlayer bunu yakalayıp alt paneli şak diye ekrandan silecek!
-      setTrack(null, '', '', false);
+      // ✕ "Kapat" butonuna basınca clearTrack() ile track'i null yapıp
+      // GlobalPlayer'ı unmount ediyoruz → ses durur, panel kapanır.
+      clearTrack();
       showToast("Podcast tamamen kapatıldı.", "success");
     } else {
       // 🎯 DOĞRU PARAMETRE SIRALAMASI: url, title, categoryName, autoPlay

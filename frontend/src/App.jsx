@@ -58,7 +58,7 @@ function AppLayout() {
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/rss-reader" element={<RssReader />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/" element={<Navigate to="/home" />} />
+            <Route path="/" element={<Navigate to="/auth" />} />
           </Routes>
         </main>
       </div>
