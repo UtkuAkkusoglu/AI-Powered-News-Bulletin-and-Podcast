@@ -11,12 +11,6 @@ import Bookmarks from './components/Bookmarks';
 import RssReader from './components/RssReader';
 import AudioPlayer from './components/AudioPlayer';
 import { PlayerProvider, usePlayer } from './contexts/PlayerContext';
-import { useEffect } from 'react';
-
-function RootRedirect() {
-  const token = localStorage.getItem('token');
-  return token ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />;
-}
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -80,7 +74,7 @@ function AppLayout() {
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/rss-reader" element={<RssReader />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/" element={<Navigate to="/home" />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </main>
       </div>
@@ -95,14 +89,13 @@ function App() {
     <PlayerProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<RootRedirect />} />
-          <Route 
-            path="/auth" 
+          <Route
+            path="/auth"
             element={
               <PublicRoute>
                 <Auth />
               </PublicRoute>
-            } 
+            }
           />
           <Route 
             path="/onboarding" 
