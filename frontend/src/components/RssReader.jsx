@@ -64,7 +64,7 @@ function RssReader() {
           setAudioUrl(data.audio_url);
           setPodcastStatus('ready');
           setPodcastCache(prev => ({ ...prev, [podcastPollTitle]: data.audio_url }));
-          setTrack(data.audio_url, podcastPollTitle, selectedArticle?.feed_title);
+          setTrack(data.audio_url, podcastPollTitle, selectedArticle?.feed_title, true);
           showToast('Podcast hazır! 🎧', 'success');
         }
       } catch {}
@@ -257,7 +257,7 @@ function RssReader() {
         setAudioUrl(data.audio_url);
         setPodcastStatus('ready');
         setPodcastCache(prev => ({ ...prev, [selectedArticle.title]: data.audio_url }));
-        setTrack(data.audio_url, selectedArticle.title, selectedArticle.feed_title);
+        setTrack(data.audio_url, selectedArticle.title, selectedArticle.feed_title, true);
       } else {
         setPodcastStatus('processing');
         setPodcastPollTitle(selectedArticle.title);
@@ -666,7 +666,7 @@ function RssReader() {
 
             {/* Podcast ready info */}
             {podcastStatus === 'ready' && audioUrl && (
-              <p style={{ color: '#10b981', fontWeight: 'bold', margin: '0 0 1.5rem', fontSize: '0.9rem' }}>🎧 Podcast hazır — aşağıdaki oynatıcıdan dinleyebilirsin.</p>
+              <p style={{ color: '#10b981', fontWeight: 'bold', margin: '0 0 1.5rem', fontSize: '0.9rem' }}>🎧 Podcast hazır — açılan oynatıcıdan dinleyebilirsin.</p>
             )}
 
             {/* Actions */}

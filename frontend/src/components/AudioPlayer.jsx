@@ -28,6 +28,7 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   const [duration, setDuration] = useState(0);
   const [speedIdx, setSpeedIdx] = useState(2); // default 1×
   const speed = SPEEDS[speedIdx];
+  const [isMuted, setIsMuted] = useState(false);
 
   // ── Drag state for floating mode ──
   const [dragPos, setDragPos] = useState(null); // { x, y } when user has dragged
@@ -103,6 +104,11 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = speed;
   }, [speedIdx]);
+
+  // Sync mute state
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.muted = isMuted;
+  }, [isMuted]);
 
   // Audio event listeners
   useEffect(() => {
@@ -184,16 +190,25 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   };
 
   return (
-    <div ref={wrapRef} style={wrapStyle}>
+    <div 
+      ref={wrapRef} 
+      style={{ ...wrapStyle, cursor: floating ? (isDragging.current ? 'grabbing' : 'grab') : 'default' }}
+      onMouseDown={(e) => { 
+        if (floating && e.target.tagName !== 'BUTTON' && !e.target.closest('button') && !e.target.closest('.no-drag')) {
+          handleDragStart(e.clientX, e.clientY); 
+        }
+      }}
+      onTouchStart={(e) => { 
+        if (floating && e.target.tagName !== 'BUTTON' && !e.target.closest('button') && !e.target.closest('.no-drag') && e.touches[0]) {
+          handleDragStart(e.touches[0].clientX, e.touches[0].clientY); 
+        }
+      }}
+    >
       <audio ref={audioRef} src={src} style={{ display: 'none' }} />
 
-      {/* Header — only in floating mode, acts as drag handle */}
+      {/* Header — only in floating mode */}
       {floating && (
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', cursor: 'grab' }}
-          onMouseDown={(e) => { if (e.target.tagName !== 'BUTTON') handleDragStart(e.clientX, e.clientY); }}
-          onTouchStart={(e) => { if (e.target.tagName !== 'BUTTON' && e.touches[0]) handleDragStart(e.touches[0].clientX, e.touches[0].clientY); }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
           <div style={{
             width: '40px', height: '40px', flexShrink: 0,
             background: 'linear-gradient(135deg, #6366f1, #a78bfa)',
@@ -229,6 +244,7 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
 
       {/* Progress bar */}
       <div
+        className="no-drag"
         onClick={seek}
         style={{ position: 'relative', height: '20px', display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '10px' }}
       >
@@ -258,7 +274,7 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
 
         {/* Play/Pause */}
         <button onClick={togglePlay}
-          style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #818cf8)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isPlaying ? '1rem' : '0.9rem', paddingLeft: isPlaying ? 0 : '2px', boxShadow: '0 4px 14px rgba(99,102,241,0.45)', transition: 'transform 0.15s', flexShrink: 0 }}
+          style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #818cf8)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isPlaying ? '1rem' : '0.9rem', paddingLeft: isPlaying ? 0 : '4px', boxShadow: '0 4px 14px rgba(99,102,241,0.45)', transition: 'transform 0.15s', flexShrink: 0 }}
           onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -287,6 +303,17 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
             e.currentTarget.style.color = speed !== 1 ? '#818cf8' : '#64748b';
           }}
         >{speed === 1 ? '1× ' : `${speed}×`}</button>
+
+        {/* Mute/Unmute */}
+        <button
+          onClick={() => setIsMuted(m => !m)}
+          title={isMuted ? "Sesi aç" : "Sesi kapat"}
+          style={{ ...iconBtn, fontSize: '0.8rem', padding: '5px 7px', marginLeft: '4px' }}
+          onMouseOver={e => e.currentTarget.style.color = '#94a3b8'}
+          onMouseOut={e => e.currentTarget.style.color = '#64748b'}
+        >
+          {isMuted ? '🔇' : '🔊'}
+        </button>
 
         <div style={{ flex: 1 }} />
 

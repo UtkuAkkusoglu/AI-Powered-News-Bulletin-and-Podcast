@@ -558,7 +558,7 @@ function Home() {
               )}
               {podcastStatus === 'processing' && <p style={{ color: '#818cf8', fontWeight: 'bold', margin: 0 }}>🎧 Hazırlanıyor...</p>}
               {podcastStatus === 'ready' && audioUrl && (
-                <p style={{ color: '#10b981', fontWeight: 'bold', margin: 0 }}>🎧 Podcast hazır — aşağıdaki oynatıcıdan dinleyebilirsin.</p>
+                <p style={{ color: '#10b981', fontWeight: 'bold', margin: 0 }}>🎧 Podcast hazır — açılan oynatıcıdan dinleyebilirsin.</p>
               )}
 
               <button
