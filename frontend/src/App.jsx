@@ -58,7 +58,7 @@ function AppLayout() {
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/rss-reader" element={<RssReader />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/" element={<Navigate to="/auth" />} />
+            <Route path="/" element={<Navigate to="/home" />} />
           </Routes>
         </main>
       </div>
@@ -73,6 +73,7 @@ function App() {
     <PlayerProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<AppLayout />} />

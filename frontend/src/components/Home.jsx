@@ -442,8 +442,13 @@ function Home() {
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
           <input type="text" placeholder="Gündemi tara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'white', outline: 'none', width: isMobile ? '100%' : '300px', flex: isMobile ? 1 : 'none', boxSizing: 'border-box' }} />
-          <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '14px 28px', borderRadius: '16px', border: 'none', background: refreshing ? '#334155' : '#6366f1', color: 'white', fontWeight: 'bold', cursor: refreshing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden' }}>
-            <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
+          <button onClick={handleRefresh} disabled={refreshing} title="Gündemi tazele" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(30, 41, 59, 0.5)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', padding: 0 }}
+            onMouseOver={e => { if (!refreshing) { e.currentTarget.style.background = 'rgba(99,102,241,0.15)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}}
+            onMouseOut={e => { e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>
+              <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+            </svg>
           </button>
           <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
