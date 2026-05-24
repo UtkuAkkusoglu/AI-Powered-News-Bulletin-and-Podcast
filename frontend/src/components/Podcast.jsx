@@ -89,17 +89,23 @@ function Podcast() {
     setPage(1);
   };
 
-  // 🎯 UTKU: İstediğin gibi durdur olayını tamamen çöpe attık reis. "Kapat" mantığı çalışıyor.
+  // 🎯 UTKU: İşte o sihirli kapatma orkestrasyonu burası reis!
   const handlePlayToggle = (pod) => {
     const isCurrentTrack = track?.src === pod.audio_url;
 
     if (isCurrentTrack) {
-      // ✕ Kapat butonuna basılmış gibi merkezi context'i NULL yapıyoruz, alt player tamamen kapanıyor!
-      setTrack(null);
-      showToast("Podcast kapatıldı.", "success");
+      // ✕ Üstteki "Kapat" butonuna basınca alt taraftaki o asılı oynatıcının çarpı (✕) butonuna basılmış gibi
+      // tüm context state'ini sıfırlıyoruz. Alt player şak diye ekrandan yok oluyor reis!
+      setTrack({ src: null, title: '', categoryName: '', autoPlay: false });
+      showToast("Podcast tamamen kapatıldı.", "success");
     } else {
-      // Eğer başka bir şarkı çalıyorsa ya da boşsa, sıfırdan temizce alt global player'a gönderiyoruz
-      setTrack(pod.audio_url, pod.title, 'Podcast', true);
+      // Çalmıyorsa taze parametrelerle alt global oynatıcıyı ayağa kaldırıyoruz
+      setTrack({
+        src: pod.audio_url,
+        title: pod.title,
+        categoryName: pod.news_id ? 'Akış' : 'RSS',
+        autoPlay: true
+      });
       showToast("Podcast kütüphaneden oynatılıyor...", "success");
     }
   };
@@ -188,10 +194,9 @@ function Podcast() {
                       </div>
                     </div>
 
-                    {/* SAĞ KISIM: İstenen 2 Buton (Kapat / Oynat ve Haberi Gör) */}
+                    {/* SAĞ KISIM: İstenen 2 Buton (✕ Kapat / ▶ Oynat ve Haberi Gör) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-start' : 'flex-end', paddingRight: isMobile ? '0' : '40px' }}>
                       
-                      {/* 🎯 UTKU: İstediğin gibi buton metni "✕ Kapat" oldu reis. Basıldığı saniyede alt paneli yok eder! */}
                       <button onClick={() => handlePlayToggle(pod)} style={styles.playBtn(isCurrent)} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                         {isCurrent ? '✕ Kapat' : '▶ Oynat'}
                       </button>
