@@ -184,7 +184,7 @@ def auto_generate_summaries_and_embeddings_task():
         db.close()
 
 @celery_app.task(name="process_rss_article_tts", queue="ai_queue")
-def process_rss_article_tts_task(title: str, content: str, user_id: int):
+def process_rss_article_tts_task(title: str, content: str, user_id: int, source_url: str = None):
     """RSS makale metnini Gemini ile Türkçeye özetler, TTS ile sese çevirir ve kaydeder."""
     import hashlib
     tmp_key = hashlib.md5(f"{title}{user_id}".encode()).hexdigest()[:12]
@@ -234,6 +234,7 @@ def process_rss_article_tts_task(title: str, content: str, user_id: int):
             user_id=user_id,
             duration=duration_seconds,
             news_id=None,
+            source_url=source_url,
         )
         db.add(podcast)
         db.commit()

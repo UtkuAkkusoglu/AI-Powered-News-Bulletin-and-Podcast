@@ -249,7 +249,7 @@ function RssReader() {
     try {
       const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL}/rss-reader/podcast`, {
         method: 'POST',
-        body: JSON.stringify({ title: selectedArticle.title, content }),
+        body: JSON.stringify({ title: selectedArticle.title, content, source_url: selectedArticle.link || null }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();

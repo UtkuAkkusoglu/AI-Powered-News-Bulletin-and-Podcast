@@ -25,6 +25,7 @@ function GlobalPlayer() {
       onClose={clearTrack}
       onNavigate={() => navigate('/podcasts')}
       floating
+      autoPlay={track.autoPlay}
       isMobile={isMobile}
     />
   );

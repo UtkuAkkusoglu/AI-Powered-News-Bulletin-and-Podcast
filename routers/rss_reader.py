@@ -24,6 +24,7 @@ class FeedAdd(BaseModel):
 class RssPodcastCreate(BaseModel):
     title: str
     content: str
+    source_url: Optional[str] = None
 
 
 class RssTranslateRequest(BaseModel):
@@ -209,7 +210,7 @@ def create_rss_podcast(body: RssPodcastCreate, db: db_dependency, current_user: 
     if existing:
         return {"status": "exists", "podcast_id": existing.id, "audio_url": existing.audio_url}
 
-    process_rss_article_tts_task.delay(body.title, body.content, current_user.id)
+    process_rss_article_tts_task.delay(body.title, body.content, current_user.id, body.source_url)
     return {"status": "processing"}
 
 

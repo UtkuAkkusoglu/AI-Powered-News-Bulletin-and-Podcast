@@ -67,6 +67,7 @@ class Podcast(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     duration = Column(Integer, nullable=False) # Saniye cinsinden
     news_id = Column(Integer, ForeignKey("news.id"), nullable=True)
+    source_url = Column(String, nullable=True)
 
     owner = relationship("User", back_populates="podcasts")
 

@@ -196,7 +196,7 @@ function Podcast() {
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {track?.src !== pod.audio_url && (
                       <button
-                        onClick={() => setTrack(pod.audio_url, pod.title, 'Podcast')}
+                        onClick={() => setTrack(pod.audio_url, pod.title, 'Podcast', true)}
                         style={{ flex: 1, minWidth: '120px', padding: '12px 20px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 6px 16px -4px rgba(99,102,241,0.4)' }}
                         onMouseOver={e => e.currentTarget.style.opacity = '0.85'}
                         onMouseOut={e => e.currentTarget.style.opacity = '1'}
@@ -213,6 +213,18 @@ function Podcast() {
                       >
                         📰 Haberi Gör
                       </button>
+                    )}
+                    {!pod.news_id && pod.source_url && (
+                      <a
+                        href={pod.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, minWidth: '120px', padding: '12px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s', textDecoration: 'none', textAlign: 'center' }}
+                        onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#818cf8'; }}
+                        onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+                      >
+                        🔗 Kaynağa Git
+                      </a>
                     )}
                   </div>
 

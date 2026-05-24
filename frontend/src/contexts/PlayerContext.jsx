@@ -3,10 +3,10 @@ import { createContext, useContext, useState } from 'react';
 const PlayerContext = createContext(null);
 
 export function PlayerProvider({ children }) {
-  const [track, setTrackState] = useState(null); // { src, title, category }
+  const [track, setTrackState] = useState(null); // { src, title, category, autoPlay }
 
-  const setTrack = (src, title = '', category = '') => {
-    setTrackState({ src, title, category });
+  const setTrack = (src, title = '', category = '', autoPlay = false) => {
+    setTrackState({ src, title, category, autoPlay });
   };
 
   const clearTrack = () => setTrackState(null);
