@@ -11,6 +11,20 @@ import Bookmarks from './components/Bookmarks';
 import RssReader from './components/RssReader';
 import AudioPlayer from './components/AudioPlayer';
 import { PlayerProvider, usePlayer } from './contexts/PlayerContext';
+import { useEffect } from 'react';
+
+function RootRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/home', { replace: true });
+    } else {
+      navigate('/auth', { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
 
 function GlobalPlayer() {
   const { track, clearTrack } = usePlayer();
@@ -73,7 +87,7 @@ function App() {
     <PlayerProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/auth" replace />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<AppLayout />} />
