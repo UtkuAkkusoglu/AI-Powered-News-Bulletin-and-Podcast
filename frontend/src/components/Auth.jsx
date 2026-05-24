@@ -132,7 +132,7 @@ function Auth() {
             {isLogin ? 'Hoş Geldiniz' : 'Aramıza Katıl'}
           </h2>
           <p style={{ color: '#94a3b8', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-            {isLogin ? 'En güncel haberler seni bekliyor.' : 'Kişisel haber akışını oluşturmaya başla.'}
+            {isLogin ? 'Kişiselleştirilmiş haber bültenin ve podcastlerin burada.' : 'Kişisel haber akışını oluşturmaya başla.'}
           </p>
         </div>
         

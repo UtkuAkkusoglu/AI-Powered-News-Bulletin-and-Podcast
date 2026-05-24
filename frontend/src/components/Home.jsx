@@ -564,6 +564,18 @@ function Home() {
               <button
                 onClick={() => handleToggleBookmark(selectedNews.id)}
                 style={{ padding: '14px 22px', borderRadius: '16px', border: `1px solid ${bookmarkedIds.has(selectedNews.id) ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)'}`, background: bookmarkedIds.has(selectedNews.id) ? 'rgba(99,102,241,0.1)' : 'transparent', color: bookmarkedIds.has(selectedNews.id) ? '#818cf8' : '#94a3b8', fontWeight: '600', cursor: 'pointer', transition: '0.2s' }}
+                onMouseOver={e => {
+                  if (!bookmarkedIds.has(selectedNews.id)) {
+                    e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)';
+                    e.currentTarget.style.color = '#818cf8';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (!bookmarkedIds.has(selectedNews.id)) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.color = '#94a3b8';
+                  }
+                }}
               >
                 {bookmarkedIds.has(selectedNews.id) ? '🔖 Kaydedildi' : '🔖 Kaydet'}
               </button>

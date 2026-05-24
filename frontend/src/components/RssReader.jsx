@@ -64,7 +64,7 @@ function RssReader() {
           setAudioUrl(data.audio_url);
           setPodcastStatus('ready');
           setPodcastCache(prev => ({ ...prev, [podcastPollTitle]: data.audio_url }));
-          setTrack(data.audio_url, podcastPollTitle, selectedArticle?.feed_title, true);
+          setTrack(data.audio_url, podcastPollTitle, selectedArticle?.feed_title);
           showToast('Podcast hazır! 🎧', 'success');
         }
       } catch {}

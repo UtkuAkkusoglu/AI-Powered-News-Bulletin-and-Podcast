@@ -173,7 +173,7 @@ function AudioPlayer({ src, title, categoryName, onClose, onNavigate, floating =
   const wrapStyle = floating
     ? dragPos
       ? { ...baseFloating, left: `${dragPos.x}px`, top: `${dragPos.y}px` }
-      : { ...baseFloating, bottom: '24px', left: isMobile ? '50%' : 'calc(50% + 140px)', transform: 'translateX(-50%)' }
+      : { ...baseFloating, bottom: '24px', ...(isMobile ? { left: '50%', transform: 'translateX(-50%)' } : { right: '32px' }) }
     : {
         width: '100%',
         background: 'rgba(2, 6, 23, 0.5)',
