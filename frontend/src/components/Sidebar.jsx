@@ -91,7 +91,7 @@ function Sidebar({ isCollapsed = false, onToggle }) {
       width: '100%',
       backgroundColor: 'rgba(30, 41, 59, 0.95)', border: '1px solid rgba(255, 255, 255, 0.1)',
       borderRadius: '16px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '5px',
-      boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', zIndex: 1001
+      boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', zIndex: 1001, boxSizing: 'border-box'
     },
     modalOverlay: {
       position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.85)',
@@ -148,14 +148,17 @@ function Sidebar({ isCollapsed = false, onToggle }) {
 
         <div style={{ position: 'relative', marginTop: 'auto' }}>
           {isMenuOpen && (
-            <div style={styles.dropdown}>
-              <button title="Ayarlar" onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} style={{ background: 'transparent', color: 'white', border: 'none', padding: '14px', textAlign: isCollapsed ? 'center' : 'left', cursor: 'pointer', fontWeight: '600', borderRadius: '10px', transition: '0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
-                ⚙️ {!isCollapsed && 'Ayarlar'}
-              </button>
-              <button title="Çıkış Yap" onClick={() => { setShowLogoutModal(true); setIsMenuOpen(false); }} style={{ background: 'transparent', color: '#ef4444', border: 'none', padding: '14px', textAlign: isCollapsed ? 'center' : 'left', cursor: 'pointer', fontWeight: '600', borderRadius: '10px', transition: '0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(239, 68, 68, 0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
-                🚪 {!isCollapsed && 'Çıkış Yap'}
-              </button>
-            </div>
+            <>
+              <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
+              <div style={styles.dropdown}>
+                <button title="Ayarlar" onClick={() => { navigate('/settings'); setIsMenuOpen(false); }} style={{ background: 'transparent', color: 'white', border: 'none', padding: '14px', textAlign: isCollapsed ? 'center' : 'left', cursor: 'pointer', fontWeight: '600', borderRadius: '10px', transition: '0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                  ⚙️ {!isCollapsed && 'Ayarlar'}
+                </button>
+                <button title="Çıkış Yap" onClick={() => { setShowLogoutModal(true); setIsMenuOpen(false); }} style={{ background: 'transparent', color: '#ef4444', border: 'none', padding: '14px', textAlign: isCollapsed ? 'center' : 'left', cursor: 'pointer', fontWeight: '600', borderRadius: '10px', transition: '0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(239, 68, 68, 0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                  🚪 {!isCollapsed && 'Çıkış Yap'}
+                </button>
+              </div>
+            </>
           )}
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} title={isCollapsed ? 'Hesabım' : ''} style={styles.accountBtn}>
             {isCollapsed ? (

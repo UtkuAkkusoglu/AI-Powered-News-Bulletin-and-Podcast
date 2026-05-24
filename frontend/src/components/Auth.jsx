@@ -127,12 +127,12 @@ function Auth() {
       </div>
 
       <div style={styles.glassCard}>
-        <div style={{ marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: '700', color: 'white', margin: 0 }}>
             {isLogin ? 'Hoş Geldiniz' : 'Aramıza Katıl'}
           </h2>
-          <p style={{ color: '#94a3b8', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-            {isLogin ? 'Kişiselleştirilmiş haber bültenin ve podcastlerin burada.' : 'Kişisel haber akışını oluşturmaya başla.'}
+          <p style={{ color: '#94a3b8', marginTop: '1.25rem', fontSize: '0.9rem' }}>
+            {isLogin ? 'Kişiselleştirilmiş haber bültenin ve podcastlerin burada' : 'Kişisel haber akışını oluşturmaya başla'}
           </p>
         </div>
         
