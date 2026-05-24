@@ -168,6 +168,19 @@ function Podcast() {
                     🗑️
                   </button>
 
+                  {/* Kaynak badge */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px',
+                      padding: '3px 10px', borderRadius: '8px',
+                      background: pod.news_id ? 'rgba(99,102,241,0.15)' : 'rgba(245,158,11,0.15)',
+                      color: pod.news_id ? '#818cf8' : '#f59e0b',
+                      border: `1px solid ${pod.news_id ? 'rgba(99,102,241,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                    }}>
+                      {pod.news_id ? '📡 Akış' : '📰 RSS'}
+                    </span>
+                  </div>
+
                   {/* Üst kısım: ikon + meta */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                     <div style={{
@@ -213,18 +226,6 @@ function Podcast() {
                       >
                         📰 Haberi Gör
                       </button>
-                    )}
-                    {!pod.news_id && pod.source_url && (
-                      <a
-                        href={pod.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ flex: 1, minWidth: '120px', padding: '12px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s', textDecoration: 'none', textAlign: 'center' }}
-                        onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#818cf8'; }}
-                        onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
-                      >
-                        🔗 Kaynağa Git
-                      </a>
                     )}
                   </div>
 

@@ -36,4 +36,4 @@ EXPOSE 8080
 
 # 9. Uygulamayı ayağa kaldırıyoruz
 # --proxy-headers: Cloud Run/Load Balancer arkasında gerçek IP'leri görebilmek için kritik
-CMD ["/bin/sh", "-c", "alembic upgrade head & exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers"]
+CMD ["/bin/sh", "-c", "alembic upgrade heads & exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers"]
